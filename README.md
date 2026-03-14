@@ -11,6 +11,6 @@ New tab page extension that complements Extended History
 -Add option for high res wallpapers feed
 -Add option to disable search input
 -Add currency conversion widget option
--Option to change "wallpaper-overlay" opacity from 0.5 to 1 range (keep text color var(--text) </br>
+-Option to change "wallpaper-overlay" opacity from 0.5 to 1 range (keep text color var(--text)
  for white color for 'site-name' and '#clock-date' what ever uses --text2)
 </pre>
