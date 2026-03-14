@@ -19,4 +19,5 @@ New tab page extension that complements Extended History </br>
 -Fix blur edge shrinking wallpaper
 -Widget icons in bottom right to minimize widgets if enabled
 -Add font size for UI
+-Choose time formating
 </pre>
