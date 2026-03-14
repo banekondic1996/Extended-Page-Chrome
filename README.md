@@ -22,4 +22,5 @@ New tab page extension that complements Extended History </br>
 -Choose time formating
 -Clock is in fixed position from top, and it can be decreased in settings
 -Add translations
+-Add famous quotes widget that fades away, but leaves text visible
 </pre>
