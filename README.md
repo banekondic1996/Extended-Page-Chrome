@@ -12,7 +12,7 @@ New tab page extension that complements Extended History </br>
 -Close active tabs from sidebar
 -Timer is not beeping on end
 -Add option for grain overlay as pattern with opacity and texture size options
--Add options for more clocks for other cities
+-Add options to show more clocks for other cities (additonal ones positioning horizontal, with overflow if browser width is smaller)
 -Button to export and import settings
 -Creators name and Github link at bottom
 -Option to randomize wallpaper
