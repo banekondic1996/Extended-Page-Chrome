@@ -21,4 +21,5 @@ New tab page extension that complements Extended History </br>
 -Add font size for UI
 -Choose time formating
 -Clock is in fixed position from top, and it can be decreased in settings
+-Add translations
 </pre>
