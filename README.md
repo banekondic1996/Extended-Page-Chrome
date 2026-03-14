@@ -20,4 +20,5 @@ New tab page extension that complements Extended History </br>
 -Widget icons in bottom right to minimize widgets if enabled
 -Add font size for UI
 -Choose time formating
+-Clock is in fixed position from top, and it can be decreased in settings
 </pre>
