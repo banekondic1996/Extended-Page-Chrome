@@ -1,5 +1,5 @@
 // ══ EXTENDED HISTORY BRIDGE ══════════════════════════════════════════════
-const EH_EXTENSION_ID = 'gpeccmdcleopblknehhmgmphfjlheino';
+const EH_EXTENSION_ID = 'cdfgfljiefjinljmnedgkfhgcgldkhkk';
 let ehAvailable = false;
 
 function ehSend(message) {

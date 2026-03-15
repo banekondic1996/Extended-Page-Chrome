@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Extended Page | New Tab",
-  "version": "1.0.3",
-  "description": "A beautiful new tab page that can be powered by Extended History extension as option.",
+  "version": "2.0.2",
+  "description": "A beautiful new tab page with widgets that can be powered by Extended History extension as option",
   "permissions": [
     "storage",
     "tabs",
