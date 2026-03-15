@@ -1001,109 +1001,77 @@ applyClockVisibility();
 applyClockTop();
 
 // ════════════════════════════════════════════ SANITIZER
-// Strip all HTML tags and decode entities — used on all external data
 function sanitizeText(str) {
   if (!str) return '';
-  // Remove script/style blocks entirely
   str = str.replace(/<script[\s\S]*?<\/script>/gi, '');
   str = str.replace(/<style[\s\S]*?<\/style>/gi, '');
-  // Strip all remaining HTML tags
   str = str.replace(/<[^>]+>/g, '');
-  // Decode common HTML entities
   const el = document.createElement('textarea');
   el.innerHTML = str;
   str = el.value;
-  // Collapse whitespace
   return str.replace(/\s+/g, ' ').trim();
 }
 
-// ════════════════════════════════════════════ MERRIAM-WEBSTER WORD OF THE DAY
-const MW_CACHE_KEY = 'nt_mw_cache';
-
 async function fetchMerriamWordOfDay() {
-  const todayKey = new Date().toISOString().slice(0,10);
-  const cached = LS.get(MW_CACHE_KEY, null);
-  if(cached && cached.date === todayKey){ 
-    renderMerriamWord(cached);
-    return; 
-  }
+  const todayKey = new Date().toISOString().slice(0, 10);
 
   try {
     const rssUrl = 'https://www.merriam-webster.com/wotd/feed/rss2';
-    const res = await fetch(rssUrl);
-    if(!res.ok) throw new Error('Fetch failed: ' + res.status);
-    const text = await res.text();
+    const apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(rssUrl);
+    const res = await fetch(apiUrl);
+    if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+    const json = await res.json();
+    if (json.status !== 'ok' || !json.items?.length) throw new Error('Bad response');
 
-    // Parse RSS
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(text,'application/xml');
-    const item = xmlDoc.querySelector('item');
-    if(!item) throw new Error('No item found');
-
-    const word = sanitizeText(item.querySelector('title')?.textContent || '').trim();
+    const item = json.items[0];
+    const word = sanitizeText(item.title || '').trim();
 
     // Parse HTML description
-    const descHTML = item.querySelector('description')?.textContent || '';
-    const descDoc = parser.parseFromString(descHTML,'text/html');
+    const parser = new DOMParser();
+    const descDoc = parser.parseFromString(item.description || '', 'text/html');
+    const allP = Array.from(descDoc.querySelectorAll('p'));
 
-    // Flatten all <p> text, including nested tags
-    const allText = Array.from(descDoc.querySelectorAll('p'))
-      .map(p => sanitizeText(p.textContent))
-      .filter(t => t && !/Merriam-Webster's Word of the Day/i.test(t) && !/^\\[A-Z]+\\/.test(t));
-
-    // Definition: first paragraph longer than 30 chars
-    const def = allText.find(t => t.length > 30) || '';
-
-    // Part of speech: look for the first <em> after skipping header/pronunciation
+    let def = '';
     let pos = '';
-    const em = descDoc.querySelectorAll('em');
-    if(em.length){
-      for(const e of em){
-        const t = sanitizeText(e.textContent).trim();
-        if(t.toLowerCase() !== word.toLowerCase() && !/^\\/.test(t)){
-          pos = t;
-          break;
-        }
-      }
-    }
-
-    // Example: paragraphs starting with //
     let ex = '';
-    for(const t of allText){
-      if(t.startsWith('//')){
-        ex = t.replace(/^\/\/\s*/,'').slice(0,300);
-        break;
-      }
+
+    // The definition is in the second <p> (index 1)
+    if (allP[1]) {
+      def = sanitizeText(allP[1].textContent).trim().slice(0, 400);
+
+      // Try to get part of speech from <em> inside that paragraph
+      const em = allP[1].querySelector('em');
+      if (em) pos = sanitizeText(em.textContent).trim();
     }
 
-    const data = { date: todayKey, word, pos, def: def.slice(0,400), ex };
-    LS.set(MW_CACHE_KEY, data);
+    // The example is in the third <p> (index 2)
+    if (allP[2]) {
+      ex = sanitizeText(allP[2].textContent).trim().replace(/^\/\/\s*/, '').slice(0, 300);
+    }
+
+    const data = { date: todayKey, word, pos, def, ex };
     renderMerriamWord(data);
 
-  } catch(e){
+  } catch (e) {
     console.error('[WOTD] error:', e);
     const wEl = document.getElementById('merriam-word');
     const dEl = document.getElementById('merriam-def');
-    if(wEl) wEl.textContent = 'Word of the Day';
-    if(dEl) dEl.textContent = 'Could not load. Visit merriam-webster.com';
+    if (wEl) wEl.textContent = 'Word of the Day';
+    if (dEl) dEl.textContent = 'Could not load. Visit merriam-webster.com';
   }
 }
 
-
-function sanitizeText(str){
-  return str.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
-}
-
-function renderMerriamWord(data){
+function renderMerriamWord(data) {
   const wordEl = document.getElementById('merriam-word');
-  const posEl  = document.getElementById('merriam-pos');
-  const defEl  = document.getElementById('merriam-def');
-  const exEl   = document.getElementById('merriam-example');
-  if(wordEl) wordEl.textContent = data.word || '';
-  if(posEl)  posEl.textContent  = data.pos || '';
-  if(defEl)  defEl.textContent  = data.def || '';
-  if(exEl)   exEl.textContent   = data.ex || '';
+  const posEl = document.getElementById('merriam-pos');
+  const defEl = document.getElementById('merriam-def');
+  const exEl = document.getElementById('merriam-example');
+  if (wordEl) wordEl.textContent = data.word || '';
+  if (posEl) posEl.textContent = data.pos || '';
+  if (defEl) defEl.textContent = data.def || '';
+  if (exEl) exEl.textContent = data.ex || '';
 }
+
 
 
 const WIDGET_DOCK_META = {
