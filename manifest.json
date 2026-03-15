@@ -1,5 +1,5 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Extended Page | New Tab",
   "version": "2.0.2",
   "description": "A beautiful new tab page with widgets that can be powered by Extended History extension as option",
@@ -11,6 +11,12 @@
   ],
   "chrome_url_overrides": {
     "newtab": "newtab.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "extended-page-newtab@extension",
+      "strict_min_version": "109.0"
+    }
   },
   "icons": {
     "16": "icons/icon16.png",

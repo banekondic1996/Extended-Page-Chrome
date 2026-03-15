@@ -1,9 +1,22 @@
+// ══ BROWSER COMPATIBILITY SHIM ═══════════════════════════════════════════
+// Firefox exposes `browser` (promise-based); Chrome exposes `chrome` (callback-based).
+// We normalise to `chrome` so the rest of the code stays unchanged, then wrap
+// individual Firefox-only async paths where needed.
+if (typeof browser !== 'undefined' && typeof chrome === 'undefined') {
+  window.chrome = browser;
+}
+const _isFirefox = (typeof browser !== 'undefined') || navigator.userAgent.includes('Firefox');
+
 // ══ EXTENDED HISTORY BRIDGE ══════════════════════════════════════════════
-const EH_EXTENSION_ID = 'cdfgfljiefjinljmnedgkfhgcgldkhkk';
+// NOTE: Firefox does NOT support chrome.runtime.sendMessage to an *external*
+// extension ID from a non-background context (new-tab page), so EH integration
+// is silently disabled on Firefox and native API fallbacks are used instead.
+const EH_EXTENSION_ID = 'cafkcdbcpedhmjmnkbgkecahgkoclhji';
 let ehAvailable = false;
 
 function ehSend(message) {
   return new Promise((resolve) => {
+    if (_isFirefox) { resolve(null); return; }
     if (typeof chrome === 'undefined' || !chrome.runtime) { resolve(null); return; }
     try {
       chrome.runtime.sendMessage(EH_EXTENSION_ID, message, (response) => {
@@ -673,7 +686,7 @@ function loadTopSitesFallbackNative() {
       try {
         const u = new URL(item.url);
         const d = u.hostname.replace(/^www\./, '');
-        if (!d || d.startsWith('chrome') || d.startsWith('about')) return;
+        if (!d || d.startsWith('chrome') || d.startsWith('about') || d.startsWith('moz-extension')) return;
         counts[d] = (counts[d] || 0) + (item.visitCount || 1);
         if (!info[d]) info[d] = { domain: d, url: u.origin, title: item.title || d };
       } catch {}
@@ -708,7 +721,7 @@ function renderActiveTabs(tabs, currentTabId) {
   list.innerHTML = '';
   if (!tabs.length) { renderSidebarEmpty('No open tabs'); return; }
   tabs.forEach(tab => {
-    if (!tab.url || tab.url.startsWith('chrome://newtab')) return;
+    if (!tab.url || tab.url.startsWith('chrome://newtab') || tab.url.startsWith('about:newtab') || tab.url.startsWith('about:blank')) return;
     let domain = '';
     try { domain = new URL(tab.url).hostname.replace(/^www\./, ''); } catch {}
     const el = document.createElement('div');
@@ -749,9 +762,19 @@ function renderActiveTabs(tabs, currentTabId) {
 function loadActiveTabsSidebar() {
   document.getElementById('sidebar-section-label').textContent = 'Active Tabs';
   if (typeof chrome === 'undefined' || !chrome.tabs) { renderSidebarEmpty('Tabs API unavailable'); return; }
-  chrome.tabs.query({}, tabs => {
-    chrome.tabs.getCurrent(current => { renderActiveTabs(tabs, current ? current.id : -1); });
-  });
+  if (_isFirefox) {
+    // Firefox: getCurrent is not reliable in new-tab pages; query active tab instead
+    chrome.tabs.query({}, tabs => {
+      chrome.tabs.query({ active: true, currentWindow: true }, active => {
+        const currentId = (active && active[0]) ? active[0].id : -1;
+        renderActiveTabs(tabs, currentId);
+      });
+    });
+  } else {
+    chrome.tabs.query({}, tabs => {
+      chrome.tabs.getCurrent(current => { renderActiveTabs(tabs, current ? current.id : -1); });
+    });
+  }
 }
 
 function setupTabListeners() {
@@ -925,7 +948,13 @@ if (greetingFadeEl) greetingFadeEl.addEventListener('change', e => {
 applyGreetingSettings();
 
 document.getElementById('openHistoryBtn').addEventListener('click', () => {
-  if (typeof chrome !== 'undefined' && chrome.tabs) chrome.tabs.create({ url: 'chrome://history' });
+  // 'chrome://history' is Chrome-only; Firefox uses 'about:history' but that
+  // isn't openable via tabs API either. Open History via keyboard shortcut hint instead,
+  // or navigate to the browser history URL that Firefox does support.
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    const histUrl = _isFirefox ? 'about:history' : 'chrome://history';
+    try { chrome.tabs.create({ url: histUrl }); } catch(e) { window.open(histUrl, '_blank'); }
+  }
 });
 
 // ════════════════════════════════════════════ SETTINGS PANEL
