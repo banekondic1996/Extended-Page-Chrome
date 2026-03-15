@@ -10,5 +10,4 @@ New tab page extension that complements Extended History </br>
 <pre>
 -Add translations
 -Add 1000 famous quotes in .js file
--Support Firefox too
 </pre>
