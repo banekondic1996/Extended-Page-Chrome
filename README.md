@@ -9,4 +9,5 @@ New tab page extension that complements Extended History </br>
 **To do:** </br>
 <pre>
 -Add translations
+-Add 1000 famous quotes in .js file
 </pre>
