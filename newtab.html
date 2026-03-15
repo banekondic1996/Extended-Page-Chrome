@@ -5,811 +5,32 @@
 <title>New Tab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-/* ═══════════════════════════════════════════════════════════ RESET & VARS */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --accent: #3b9eff;
-  --accent2: #2dd4a0;
-  --sidebar-w: 48px;
-  --sidebar-expanded: 220px;
-  --bg: #0c0c10;
-  --glass: rgba(255,255,255,0.04);
-  --glass-border: rgba(255,255,255,0.09);
-  --glass-hover: rgba(255,255,255,0.08);
-  --text: #f0eee8;
-  --text2: #9896a8;
-  --text3: #4a4860;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --blur: blur(20px) saturate(1.4);
-  --shadow: 0 8px 32px rgba(0,0,0,0.4);
-  --font: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'DM Mono', monospace;
-  --wallpaper: none;
-  --wallpaper-overlay: rgba(12,12,16,0.75);
-}
-
-[data-theme="light"] {
-  --bg: #f0f0f5;
-  --glass: rgba(255,255,255,0.55);
-  --glass-border: rgba(0,0,0,0.08);
-  --glass-hover: rgba(255,255,255,0.75);
-  --text: #111118;
-  --text2: #555568;
-  --text3: #aaaabc;
-  --wallpaper-overlay: rgba(240,240,245,0.6);
-  --shadow: 0 8px 32px rgba(0,0,0,0.12);
-}
-
-html, body {
-  height: 100%;
-  font-family: var(--font);
-  background: var(--bg);
-  color: var(--text);
-  overflow: hidden;
-  user-select: none;
-}
-
-/* ═══════════════════════════════════════════════════════════ WALLPAPER */
-#wallpaper-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background-size: cover;
-  background-position: center;
-  background-image: var(--wallpaper);
-  transition: background-image 0.5s;
-}
-#wallpaper-overlay {
-  position: fixed; inset: 0; z-index: 1;
-  background: var(--wallpaper-overlay);
-  transition: background 0.4s;
-}
-
-/* ═══════════════════════════════════════════════════════════ LAYOUT */
-#app {
-  position: relative; z-index: 2;
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-}
-
-/* ═══════════════════════════════════════════════════════════ SIDEBAR */
-#sidebar {
-  width: var(--sidebar-w);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 8px;
-  background: var(--glass);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border-right: 1px solid var(--glass-border);
-  transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
-  overflow: hidden;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-}
-#sidebar:hover {
-  width: var(--sidebar-expanded);
-}
-#sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 6px 14px;
-  border-bottom: 1px solid var(--glass-border);
-  margin-bottom: 6px;
-  min-width: var(--sidebar-expanded);
-  overflow: hidden;
-}
-
-.sidebar-logo {
-  width: 26px; height: 26px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-.sidebar-logo-text {
-  font-size: 0.78rem; font-weight: 600;
-  color: var(--text2);
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-#sidebar:hover .sidebar-logo-text { opacity: 1; }
-
-.sidebar-section-label {
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text3);
-  padding: 10px 6px 4px;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.2s;
-  min-width: var(--sidebar-expanded);
-}
-#sidebar:hover .sidebar-section-label { opacity: 1; }
-
-.tab-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 7px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.12s;
-  min-width: var(--sidebar-expanded);
-  overflow: hidden;
-  position: relative;
-}
-
-.tab-item:hover { background: var(--glass-hover); }
-.tab-item .tab-fav {
-  width: 20px; height: 20px;
-  border-radius: 5px;
-  flex-shrink: 0;
-  object-fit: contain;
-  background: var(--glass);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-#sidebar:hover .tab-item .tab-fav { opacity: 1; }
-.tab-item .tab-label {
-  flex: 1;
-  font-size: 0.76rem;
-  color: var(--text2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-#sidebar:hover .tab-label { opacity: 1; }
-.tab-item .tab-restore {
-  font-size: 0.6rem;
-  color: var(--accent);
-  opacity: 0;
-  transition: opacity 0.1s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.tab-item:hover .tab-restore { opacity: 1; }
-
-.sidebar-empty {
-  font-size: 0.72rem;
-  color: var(--text3);
-  text-align: center;
-  padding: 12px 6px;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-#sidebar:hover .sidebar-empty { opacity: 1; }
-
-#sidebar-tabs-list {
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-#sidebar:hover #sidebar-tabs-list {
-  scrollbar-width: thin;
-  scrollbar-color: var(--glass-border) transparent;
-}
-#sidebar-tabs-list::-webkit-scrollbar { width: 3px; }
-#sidebar-tabs-list::-webkit-scrollbar-track { background: transparent; }
-#sidebar-tabs-list::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
-#sidebar:hover #sidebar-tabs-list::-webkit-scrollbar-thumb { background: var(--glass-border); }
-
-#sidebar-bottom {
-  border-top: 1px solid var(--glass-border);
-  padding-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sidebar-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 7px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: none;
-  border: none;
-  color: var(--text2);
-  font-family: var(--font);
-  font-size: 0.76rem;
-  text-align: left;
-  min-width: var(--sidebar-expanded);
-  overflow: hidden;
-  transition: background 0.12s, color 0.12s;
-}
-
-.sidebar-btn:hover { background: var(--glass-hover); color: var(--text); }
-.sidebar-btn .sb-icon { width: 20px; font-size: 14px; text-align: center; flex-shrink: 0; }
-.sidebar-btn .sb-label { opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
-#sidebar:hover .sb-label { opacity: 1; }
-
-/* ═══════════════════════════════════════════════════════════ MAIN */
-#main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 32px;
-  padding: 24px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* ═══════════════════════════════════════════════════════════ CLOCK */
-#clock-block {
-  text-align: center;
-}
-#clock-time {
-  font-family: var(--font-mono);
-  font-size: clamp(3rem, 8vw, 6rem);
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  color: var(--text);
-  text-shadow: 0 0 40px rgba(59,158,255,0.15);
-}
-#clock-date {
-  font-size: 0.9rem;
-  color: var(--text2);
-  margin-top: 6px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-}
-
-/* ═══════════════════════════════════════════════════════════ SEARCH */
-#search-block {
-  width: 100%;
-  max-width: 560px;
-}
-#search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-#search-input {
-  width: 100%;
-  padding: 14px 50px 14px 20px;
-  background: var(--glass);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 50px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 0.95rem;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-shadow: var(--shadow);
-}
-#search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59,158,255,0.12), var(--shadow);
-}
-#search-input::placeholder { color: var(--text3); }
-#search-go {
-  position: absolute;
-  right: 14px;
-  background: none;
-  border: none;
-  color: var(--text3);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.15s;
-}
-#search-go:hover { color: var(--accent); }
-
-/* ═══════════════════════════════════════════════════════════ TOP SITES */
-#topsites-block {
-  width: 100%;
-  max-width: 640px;
-}
-#topsites-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin-bottom: 14px;
-  text-align: center;
-}
-#topsites-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-}
-.site-icon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  background: var(--glass);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--glass-border);
-  transition: background 0.15s, transform 0.15s, border-color 0.15s, box-shadow 0.15s;
-  min-width: 76px;
-  text-decoration: none;
-  position: relative;
-  overflow: hidden;
-}
-.site-icon::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
-  pointer-events: none;
-}
-.site-icon:hover {
-  background: var(--glass-hover);
-  transform: translateY(-3px);
-  border-color: rgba(255,255,255,0.15);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-}
-.site-icon img {
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  object-fit: contain;
-}
-.site-icon .site-favicon-placeholder {
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; color: #fff;
-}
-.site-icon .site-name {
-  font-size: 0.65rem;
-  color: var(--text2);
-  max-width: 68px;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ═══════════════════════════════════════════════════════════ WIDGETS */
-.widget {
-  position: fixed;
-  background: var(--glass);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  z-index: 50;
-  min-width: 200px;
-  overflow: hidden;
-}
-.widget-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px 8px;
-  cursor: grab;
-  border-bottom: 1px solid var(--glass-border);
-}
-.widget-header:active { cursor: grabbing; }
-.widget-title {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  flex: 1;
-}
-.widget-close {
-  background: none;
-  border: none;
-  color: var(--text3);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: color 0.12s, background 0.12s;
-  line-height: 1;
-}
-.widget-close:hover { color: var(--text); background: var(--glass-hover); }
-
-/* ── WEATHER WIDGET */
-#widget-weather {
-  right: 260px; bottom: 24px;
-  width: 220px;
-  display: none;
-}
-.weather-body {
-  padding: 14px;
-}
-.weather-location {
-  font-size: 0.7rem;
-  color: var(--text3);
-  margin-bottom: 2px;
-}
-.weather-temp {
-  font-family: var(--font-mono);
-  font-size: 2.2rem;
-  font-weight: 300;
-  color: var(--text);
-  line-height: 1;
-}
-.weather-desc {
-  font-size: 0.78rem;
-  color: var(--text2);
-  margin-top: 4px;
-}
-.weather-icon { font-size: 2rem; margin-bottom: 6px; color: #fff; line-height: 1; display: flex; align-items: center; }
-.weather-input-wrap { padding: 10px 14px 14px; }
-.weather-city-input {
-  width: 100%;
-  padding: 7px 10px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 0.75rem;
-  outline: none;
-}
-.weather-city-input:focus { border-color: var(--accent); }
-.weather-city-input::placeholder { color: var(--text3); }
-
-
-/* ═══════════════════════════════════════════════════════════ SETTINGS PANEL */
-#settings-panel {
-  position: fixed;
-  top: 0; right: -400px;
-  width: 360px;
-  height: 100%;
-  background: var(--glass);
-  backdrop-filter: blur(30px) saturate(1.6);
-  -webkit-backdrop-filter: blur(30px) saturate(1.6);
-  border-left: 1px solid var(--glass-border);
-  z-index: 200;
-  transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
-  display: flex;
-  flex-direction: column;
-  box-shadow: -8px 0 40px rgba(0,0,0,0.3);
-}
-#settings-panel.open { right: 0; }
-#settings-overlay {
-  position: fixed; inset: 0;
-  z-index: 190;
-  background: rgba(0,0,0,0.3);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  display: none;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-#settings-overlay.open { display: block; opacity: 1; }
-.settings-header {
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid var(--glass-border);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.settings-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  flex: 1;
-}
-.settings-close {
-  background: none;
-  border: none;
-  color: var(--text2);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 6px;
-  transition: color 0.12s;
-}
-.settings-close:hover { color: var(--text); }
-.settings-body { flex: 1; overflow-y: auto; padding: 16px 20px; scrollbar-width: thin; }
-.setting-group {
-  margin-bottom: 14px;
-}
-.setting-group-label {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin-bottom: 10px;
-}
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 4px;
-}
-.setting-row-label {
-  font-size: 0.8rem;
-  color: var(--text);
-}
-.setting-row-sub {
-  font-size: 0.7rem;
-  color: var(--text3);
-  margin-top: 1px;
-}
-
-/* Toggle switch */
-.toggle { position: relative; display: inline-block; width: 38px; height: 22px; }
-.toggle input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-  position: absolute; inset: 0;
-  background: var(--text3);
-  border-radius: 50px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  width: 16px; height: 16px;
-  left: 3px; bottom: 3px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-.toggle input:checked + .toggle-slider { background: var(--accent); }
-.toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
-
-/* Wallpaper grid */
-.wallpaper-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 8px;
-  margin-bottom: 20px;
-}
-.wallpaper-thumb {
-  aspect-ratio: 16/9;
-  border-radius: 8px;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: border-color 0.15s, transform 0.15s;
-  overflow: hidden;
-  background-size: cover;
-  background-position: center;
-  position: relative;
-}
-.wallpaper-thumb:hover { transform: scale(1.04); border-color: var(--glass-border); }
-.wallpaper-thumb.active { border-color: var(--accent); }
-.wallpaper-thumb.none-thumb {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem;
-  color: var(--text3);
-}
-.wp-upload-btn {
-  margin-top: 8px;
-  width: 100%;
-  padding: 9px;
-  background: var(--glass);
-  border: 1px dashed var(--glass-border);
-  border-radius: 8px;
-  color: var(--text2);
-  font-family: var(--font);
-  font-size: 0.78rem;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.wp-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-/* Accent picker */
-.accent-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-.accent-swatch {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: transform 0.12s, border-color 0.12s;
-}
-.accent-swatch:hover { transform: scale(1.2); }
-.accent-swatch.active { border-color: var(--text); }
-
-/* Widget toggles */
-.widget-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 4px;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-.widget-toggle-row:hover { background: var(--glass-hover); }
-.widget-toggle-icon { font-size: 1rem; }
-.widget-toggle-label { flex: 1; font-size: 0.8rem; color: var(--text); }
-
-/* ═══════════════════════════════════════════════════════════ ANIMATIONS */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* Fix select option text in dark mode */
-select option {
-  background: #1a1a24;
-  color: #f0eee8;
-}
-[data-theme="light"] select option {
-  background: #ffffff;
-  color: #111118;
-}
-
-/* Range slider */
-.range-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.range-slider {
-  flex: 1;
-  -webkit-appearance: none;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--glass-border);
-  outline: none;
-  cursor: pointer;
-}
-.range-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-.range-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-.range-label {
-  font-size: 0.72rem;
-  color: var(--text3);
-  font-family: var(--font-mono);
-  min-width: 32px;
-  text-align: right;
-}
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 2px; }
-
-/* Open History button — plain, no highlight */
-
-/* City autocomplete dropdown */
-.city-suggestions {
-  position: absolute;
-  bottom: 100%;
-  left: 0; right: 0;
-  background: var(--bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  margin-bottom: 4px;
-  overflow: hidden;
-  z-index: 999;
-  box-shadow: 0 -8px 24px rgba(0,0,0,0.3);
-  max-height: 160px;
-  overflow-y: auto;
-}
-.city-suggestion-item {
-  padding: 8px 12px;
-  font-size: 0.78rem;
-  color: var(--text2);
-  cursor: pointer;
-  transition: background 0.1s;
-}
-.city-suggestion-item:hover, .city-suggestion-item.selected {
-  background: var(--glass-hover);
-  color: var(--text);
-}
-.weather-input-wrap { position: relative; }
-
-/* ── Top-right hints */
-#hint-settings {
-  position: fixed;
-  top: 16px; right: 16px;
-  z-index: 100;
-}
-.settings-pill {
-  padding: 8px 14px;
-  background: var(--glass);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 50px;
-  color: var(--text2);
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background 0.12s, color 0.12s;
-}
-.settings-pill:hover { background: var(--glass-hover); color: var(--text); }
-</style>
+<link rel="stylesheet" href="newtab.css">
 </head>
 <body>
 
-<!-- Wallpaper layers -->
 <div id="wallpaper-bg"></div>
 <div id="wallpaper-overlay"></div>
+<div id="grain-overlay"></div>
 
-<!-- Settings trigger -->
 <div id="hint-settings">
   <button class="settings-pill" id="settingsBtn">⚙ Settings</button>
 </div>
 
-<!-- ════ LAYOUT ════ -->
 <div id="app">
-
-  <!-- SIDEBAR: Stored Tabs -->
-  <div id="sidebar">
-    <div id="sidebar-header">
-      <div class="sidebar-logo"><img src="/icons/icon128.png" style="width:26px;height:26px;border-radius:6px;display:block;" onerror="this.style.display='none'"></div>
-      <div class="sidebar-logo-text">Extended Page</div>
-    </div>
-    <div class="sidebar-section-label" id="sidebar-section-label">Most Visited — 10 days</div>
-    <div id="sidebar-tabs-list">
-      <div class="sidebar-empty">No stored tabs yet</div>
-    </div>
-    <div id="sidebar-bottom">
-      <button class="sidebar-btn" id="openHistoryBtn">
-        <span class="sb-icon">🕐</span>
-        <span class="sb-label">Full History</span>
-      </button>
-      <button class="sidebar-btn" id="openSettingsFromSidebar">
-        <span class="sb-icon">⚙</span>
-        <span class="sb-label">Settings</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- MAIN CONTENT -->
   <div id="main">
-
-    <!-- Clock -->
     <div id="clock-block">
-      <div id="clock-time">00:00:00</div>
+      <div id="greeting-line"></div>
+      <div id="clock-time">00:00</div>
       <div id="clock-date">Loading…</div>
+      <div id="clock-weather-inline">
+        <div id="cwi-icon"></div>
+        <span id="cwi-temp">--°</span>
+        <span id="cwi-desc"></span>
+      </div>
+      <div id="extra-clocks"></div>
     </div>
 
-    <!-- Search -->
     <div id="search-block">
       <div id="search-wrap">
         <input type="text" id="search-input" placeholder="Search the web or type a URL…" autocomplete="off" spellcheck="false">
@@ -817,26 +38,41 @@ select option {
       </div>
     </div>
 
-    <!-- Top Sites -->
     <div id="topsites-block">
       <div id="topsites-label">Most Visited</div>
       <div id="topsites-grid">
-        <div style="color:var(--text3);font-size:0.8rem;padding:12px;">Loading top sites…</div>
+        <div style="color:var(--text2);font-size:0.8rem;padding:12px;">Loading top sites…</div>
       </div>
     </div>
-
   </div>
 </div>
 
-<!-- ════ WIDGETS ════ -->
-
-<!-- Weather Widget -->
-<div class="widget" id="widget-weather">
-  <div class="widget-header" data-widget="weather">
-    <span>🌤</span>
-    <span class="widget-title">Weather</span>
-    <button class="widget-close" data-close="weather">✕</button>
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <div class="sidebar-logo"><img src="/icons/icon128.png" style="width:26px;height:26px;border-radius:6px;display:block;" onerror="this.style.display='none'"></div>
+    <div class="sidebar-logo-text">Extended Page</div>
   </div>
+  <div class="sidebar-section-label" id="sidebar-section-label">Active Tabs</div>
+  <div id="sidebar-tabs-list"><div class="sidebar-empty">Loading…</div></div>
+  <div id="sidebar-bottom">
+    <div id="sidebar-mode-inline-wrap">
+      <select id="sidebar-mode-inline" title="Sidebar content">
+        <option value="activetabs">Active Tabs</option>
+        <option value="mostvisited">Most Visited</option>
+        <option value="stored">Stored Tabs</option>
+        <option value="bookmarks">Bookmarks</option>
+        <option value="none">Hidden</option>
+      </select>
+    </div>
+    <button class="sidebar-btn" id="openHistoryBtn"><span class="sb-icon">🕐</span><span class="sb-label">Full History</span></button>
+    <button class="sidebar-btn" id="openSettingsFromSidebar"><span class="sb-icon">⚙</span><span class="sb-label">Settings</span></button>
+  </div>
+</div>
+
+<!-- WIDGETS -->
+<div class="widget" id="widget-weather">
+  <div class="widget-header"><span>🌤</span><span class="widget-title">Weather</span><button class="widget-close" data-close="weather">✕</button></div>
   <div class="weather-body" id="weather-body">
     <div class="weather-icon" id="weather-icon">🌡</div>
     <div class="weather-location" id="weather-location">Enter a city below</div>
@@ -848,8 +84,129 @@ select option {
   </div>
 </div>
 
+<div class="widget" id="widget-timer">
+  <div class="widget-header"><span>⏱</span><span class="widget-title">Timer</span><button class="widget-close" data-close="timer">✕</button></div>
+  <div class="timer-mode-tabs">
+    <button class="timer-mode-tab active" id="tab-timer">Timer</button>
+    <button class="timer-mode-tab" id="tab-stopwatch">Stopwatch</button>
+  </div>
+  <div id="timer-mode-panel">
+    <div class="timer-ring-wrap">
+      <svg width="80" height="80" viewBox="0 0 80 80"><circle class="timer-ring-bg" cx="40" cy="40" r="36"/><circle class="timer-ring-fg" id="timer-ring" cx="40" cy="40" r="36" stroke-dasharray="226.2" stroke-dashoffset="0"/></svg>
+      <div class="timer-ring-text" id="timer-display">00:00</div>
+    </div>
+    <div class="timer-status-label" id="timer-status">Ready</div>
+    <div class="timer-input-row"><input type="text" id="timer-input" placeholder="mm:ss or minutes"></div>
+    <div class="timer-presets">
+      <button class="timer-preset" data-mins="1">1m</button>
+      <button class="timer-preset" data-mins="5">5m</button>
+      <button class="timer-preset" data-mins="10">10m</button>
+      <button class="timer-preset" data-mins="25">25m</button>
+      <button class="timer-preset" data-mins="60">1h</button>
+    </div>
+    <div class="timer-controls">
+      <button class="timer-btn primary" id="timer-start-btn">Start</button>
+      <button class="timer-btn" id="timer-reset-btn">Reset</button>
+    </div>
+  </div>
+  <div id="stopwatch-mode-panel" style="display:none;">
+    <div class="sw-time" id="stopwatch-display">00:00.0</div>
+    <div class="timer-status-label" id="sw-status">Ready</div>
+    <div class="timer-controls">
+      <button class="timer-btn primary" id="sw-start-btn">Start</button>
+      <button class="timer-btn" id="sw-lap-btn">Lap</button>
+      <button class="timer-btn" id="sw-reset-btn">Reset</button>
+    </div>
+    <div id="sw-laps"></div>
+  </div>
+</div>
 
-<!-- ════ SETTINGS PANEL ════ -->
+<div class="widget" id="widget-ignorelist" style="display:none;right:24px;top:50%;transform:translateY(-50%);width:300px;max-height:420px;">
+  <div class="widget-header"><span>🚫</span><span class="widget-title">Ignored Sites</span><button class="widget-close" data-close="ignorelist">✕</button></div>
+  <div style="padding:10px 14px 4px;font-size:0.72rem;color:var(--text2);">Sites hidden from Most Visited. Click × to restore.</div>
+  <div id="ignorelist-body" style="padding:6px 14px;max-height:280px;overflow-y:auto;scrollbar-width:thin;"></div>
+  <div style="padding:8px 14px 12px;">
+    <button id="ignorelist-clear-btn" style="width:100%;padding:7px;background:rgba(229,62,62,0.12);border:1px solid rgba(229,62,62,0.3);border-radius:8px;color:#e53e3e;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:background 0.12s;">Clear All</button>
+  </div>
+</div>
+
+<div class="widget" id="widget-notes">
+  <div class="widget-header"><span>📝</span><span class="widget-title">Notes</span><button class="widget-close" data-close="notes">✕</button></div>
+  <textarea class="notes-area" id="notes-area" placeholder="Jot something down…" spellcheck="false"></textarea>
+  <div class="notes-footer">
+    <span id="notes-char-count">0 chars</span>
+    <span class="notes-saved" id="notes-saved" style="opacity:0">Saved ✓</span>
+  </div>
+</div>
+
+<div class="widget" id="widget-currency">
+  <div class="widget-header"><span>💱</span><span class="widget-title">Currency</span><button class="widget-close" data-close="currency">✕</button></div>
+  <div class="currency-body">
+    <div class="currency-row">
+      <input type="number" id="currency-amount" value="1" min="0" step="any">
+      <select class="currency-sel" id="currency-from"></select>
+    </div>
+    <button class="currency-swap-btn" id="currency-swap">⇅ Swap</button>
+    <div class="currency-row">
+      <input type="number" id="currency-result-input" value="" placeholder="—" readonly style="color:var(--accent)">
+      <select class="currency-sel" id="currency-to"></select>
+    </div>
+    <div class="currency-result" id="currency-result">—</div>
+    <div class="currency-rate" id="currency-rate">Loading rates…</div>
+  </div>
+</div>
+
+<div class="widget" id="widget-quotes">
+  <div class="widget-header"><span>💬</span><span class="widget-title">Quote</span>
+    <button class="widget-transparent-btn" data-target="widget-quotes" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="quotes">✕</button>
+  </div>
+  <div class="quotes-body">
+    <div class="quotes-text" id="quotes-text">Loading…</div>
+    <div class="quotes-author" id="quotes-author"></div>
+  </div>
+  <div class="quotes-footer">
+    <span id="quotes-counter" style="font-size:0.62rem;color:var(--text2);"></span>
+    <button class="quotes-next-btn" id="quotes-next">Next →</button>
+  </div>
+</div>
+
+<div class="widget" id="widget-learn">
+  <div class="widget-header"><span>🔤</span><span class="widget-title">Learn Language</span>
+    <button class="widget-transparent-btn" data-target="widget-learn" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="learn">✕</button>
+  </div>
+  <div class="word-body">
+    <div class="word-pair" id="word-pair">—</div>
+    <div class="word-lang-display" id="word-lang-display">English – French</div>
+  </div>
+  <div class="word-footer">
+    <button class="quotes-next-btn" id="word-next">Next →</button>
+  </div>
+</div>
+
+<!-- Merriam-Webster Word of Day -->
+<div class="widget" id="widget-merriam">
+  <div class="widget-header">
+    <span>📖</span><span class="widget-title">Word of the Day</span>
+    <button class="widget-transparent-btn" data-target="widget-merriam" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="merriam">✕</button>
+  </div>
+  <div class="merriam-body" id="merriam-body">
+    <div class="merriam-word" id="merriam-word">Loading…</div>
+    <div class="merriam-pos" id="merriam-pos"></div>
+    <div class="merriam-def" id="merriam-def"></div>
+    <div class="merriam-example" id="merriam-example"></div>
+  </div>
+  <div class="merriam-footer">
+    <a class="merriam-link" id="merriam-link" href="https://www.merriam-webster.com/word-of-the-day" target="_blank">merriam-webster.com ↗</a>
+  </div>
+</div>
+
+<!-- WIDGET DOCK -->
+<div id="widget-dock"></div>
+
+<!-- SETTINGS -->
 <div id="settings-overlay"></div>
 <div id="settings-panel">
   <div class="settings-header">
@@ -859,45 +216,82 @@ select option {
   </div>
   <div class="settings-body">
 
-    <!-- Wallpapers -->
     <div class="setting-group">
       <div class="setting-group-label">Wallpaper</div>
       <div class="wallpaper-grid" id="wallpaper-grid">
         <div class="wallpaper-thumb none-thumb active" data-wp="none">✕</div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1463003416389-296a1ad37ca0?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1463003416389-296a1ad37ca0?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400&q=60')"></div>
-        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1476611317561-60117649dd94?w=1200&q=80" style="background-image:url('https://images.unsplash.com/photo-1476611317561-60117649dd94?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1463003416389-296a1ad37ca0?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1463003416389-296a1ad37ca0?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1476611317561-60117649dd94?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1476611317561-60117649dd94?w=400&q=60')"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1454789548928-9efd52dc4031?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1454789548928-9efd52dc4031?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1446329813274-7c9036bd9a1f?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1446329813274-7c9036bd9a1f?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1542293787938-c9e299b880cc?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1542293787938-c9e299b880cc?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1561649100-28f1f5f5c2e8?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1561649100-28f1f5f5c2e8?w=1920&q=90"></div>
       </div>
       <label class="wp-upload-btn" for="wp-upload">+ Upload wallpaper…<input type="file" id="wp-upload" accept="image/*" style="display:none"></label>
-      <div class="setting-row" style="margin-top:14px;">
-        <div>
-          <div class="setting-row-label">Wallpaper Blur</div>
-          <div class="setting-row-sub">Blur the background image</div>
+      <div class="setting-row" style="margin-top:10px;">
+        <div><div class="setting-row-label">High-Res Feed</div><div class="setting-row-sub">Expand library with more photos</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-hires-feed"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="margin-top:4px;">
+        <div><div class="setting-row-label">Randomize on New Tab</div><div class="setting-row-sub">Pick a random wallpaper each time</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-random-wp"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+        <div class="setting-row-label">Wallpaper Blur</div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="blur-slider" min="0" max="20" step="1" value="0">
+          <span class="range-label" id="blur-label">0px</span>
         </div>
       </div>
-      <div style="padding:0 12px 4px;" class="range-row">
-        <input type="range" class="range-slider" id="blur-slider" min="0" max="20" step="1" value="0">
-        <span class="range-label" id="blur-label">0px</span>
+      <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+        <div class="setting-row-label">Overlay Opacity</div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="overlay-slider" min="40" max="100" step="1" value="72">
+          <span class="range-label" id="overlay-label">72%</span>
+        </div>
+      </div>
+      <div class="setting-row" style="margin-top:4px;">
+        <div><div class="setting-row-label">Grain Overlay</div><div class="setting-row-sub">Film-grain texture on background</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-grain"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="grain-controls" style="display:none;">
+        <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+          <div class="setting-row-label">Grain Opacity</div>
+          <div class="range-row" style="width:100%;">
+            <input type="range" class="range-slider" id="grain-opacity-slider" min="1" max="100" step="1" value="10">
+            <span class="range-label" id="grain-opacity-label">10%</span>
+          </div>
+        </div>
+        <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+          <div class="setting-row-label">Texture Size</div>
+          <div class="range-row" style="width:100%;">
+            <input type="range" class="range-slider" id="grain-size-slider" min="80" max="400" step="20" value="200">
+            <span class="range-label" id="grain-size-label">200px</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Appearance -->
     <div class="setting-group">
       <div class="setting-group-label">Appearance</div>
       <div class="setting-row">
-        <div>
-          <div class="setting-row-label">Dark Mode</div>
-          <div class="setting-row-sub">Toggle light / dark theme</div>
+        <div><div class="setting-row-label">Dark Mode</div><div class="setting-row-sub">Toggle light / dark theme</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-theme" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div class="setting-row-label">UI Font Size</div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="fontsize-slider" min="80" max="120" step="5" value="100">
+          <span class="range-label" id="fontsize-label">100%</span>
         </div>
-        <label class="toggle">
-          <input type="checkbox" id="toggle-theme" checked>
-          <span class="toggle-slider"></span>
-        </label>
       </div>
       <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
         <div class="setting-row-label">Accent Color</div>
@@ -914,18 +308,17 @@ select option {
       <div class="setting-row">
         <div class="setting-row-label">Search Engine</div>
         <select id="search-engine-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
-          <option value="google">Google</option>
-          <option value="bing">Bing</option>
-          <option value="custom">Custom</option>
+          <option value="google">Google</option><option value="bing">Bing</option><option value="custom">Custom</option>
         </select>
       </div>
       <div class="setting-row" id="search-custom-row" style="display:none;">
-        <div>
-          <div class="setting-row-label">Custom URL</div>
-          <div class="setting-row-sub">Include <code style="font-size:0.68rem;background:var(--glass);padding:1px 4px;border-radius:3px;">%s</code> for query</div>
-        </div>
+        <div><div class="setting-row-label">Custom URL</div><div class="setting-row-sub">Use <code style="font-size:0.68rem;background:var(--glass);padding:1px 4px;border-radius:3px;">%s</code> for query</div></div>
         <input id="search-custom-url" type="text" placeholder="https://…?q=%s" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.72rem;outline:none;width:140px;">
       </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-group-label">Clock</div>
       <div class="setting-row">
         <div class="setting-row-label">Clock Font</div>
         <select id="clock-font-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
@@ -937,74 +330,147 @@ select option {
         </select>
       </div>
       <div class="setting-row">
-        <div>
-          <div class="setting-row-label">Show Clock</div>
-          <div class="setting-row-sub">Display the time</div>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="toggle-clock" checked>
-          <span class="toggle-slider"></span>
-        </label>
+        <div class="setting-row-label">Time Format</div>
+        <select id="clock-format-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="24">24-hour</option>
+          <option value="12">12-hour (AM/PM)</option>
+        </select>
       </div>
       <div class="setting-row">
-        <div>
-          <div class="setting-row-label">Show Date</div>
-          <div class="setting-row-sub">Display the date below time</div>
+        <div><div class="setting-row-label">Show Clock</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-clock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Date</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-date" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Weather Under Clock</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-clock-weather"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div><div class="setting-row-label">Clock Vertical Position</div><div class="setting-row-sub">Move clock up (−) or down (+)</div></div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="clock-top-slider" min="-200" max="200" step="10" value="0">
+          <span class="range-label" id="clock-top-label">0px</span>
         </div>
-        <label class="toggle">
-          <input type="checkbox" id="toggle-date" checked>
-          <span class="toggle-slider"></span>
-        </label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Greeting Message</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-greeting"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" id="greeting-name-row" style="display:none;">
+        <div class="setting-row-label">Your Name</div>
+        <input id="greeting-name-input" type="text" placeholder="e.g. Alex" autocomplete="off">
+      </div>
+      <div class="setting-row" id="greeting-fade-row" style="display:none;">
+        <div><div class="setting-row-label">Greeting Fade (s)</div><div class="setting-row-sub">0 = stays visible</div></div>
+        <input id="greeting-fade-input" type="number" min="0" max="60" value="4" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font-mono);font-size:0.78rem;outline:none;width:60px;text-align:center;">
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Search Bar</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-search" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Extra Timezone Clocks</div><div class="setting-row-sub">Show additional city clocks</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-extra-clocks"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="extra-clocks-settings" style="display:none;margin-top:2px;">
+        <div id="extra-clocks-list"></div>
+        <button id="add-clock-btn">+ Add clock</button>
       </div>
     </div>
 
-    <!-- Widgets -->
-      <label class="widget-toggle-row" id="toggle-weather" for="chk-weather">
-        <span class="widget-toggle-icon">🌤</span>
-        <span class="widget-toggle-label">Weather</span>
-        <span class="toggle">
-          <input type="checkbox" id="chk-weather">
-          <span class="toggle-slider"></span>
-        </span>
+    <div class="setting-group">
+      <div class="setting-group-label">Widgets</div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Widget Fade</div><div class="setting-row-sub">Widgets dim to 30% until hovered</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-widget-fade"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Dock Buttons</div><div class="setting-row-sub">Quick-access circles in corner</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-widget-dock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <label class="widget-toggle-row" for="chk-weather">
+        <span class="widget-toggle-icon">🌤</span><span class="widget-toggle-label">Weather</span>
+        <span class="toggle"><input type="checkbox" id="chk-weather"><span class="toggle-slider"></span></span>
       </label>
+      <label class="widget-toggle-row" for="chk-timer">
+        <span class="widget-toggle-icon">⏱</span><span class="widget-toggle-label">Timer / Stopwatch</span>
+        <span class="toggle"><input type="checkbox" id="chk-timer"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-notes">
+        <span class="widget-toggle-icon">📝</span><span class="widget-toggle-label">Notes</span>
+        <span class="toggle"><input type="checkbox" id="chk-notes"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-currency">
+        <span class="widget-toggle-icon">💱</span><span class="widget-toggle-label">Currency Converter</span>
+        <span class="toggle"><input type="checkbox" id="chk-currency"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-quotes">
+        <span class="widget-toggle-icon">💬</span><span class="widget-toggle-label">Famous Quotes</span>
+        <span class="toggle"><input type="checkbox" id="chk-quotes"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-learn">
+        <span class="widget-toggle-icon">🔤</span><span class="widget-toggle-label">Learn Language</span>
+        <span class="toggle"><input type="checkbox" id="chk-learn"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-merriam">
+        <span class="widget-toggle-icon">📖</span><span class="widget-toggle-label">Word of the Day</span>
+        <span class="toggle"><input type="checkbox" id="chk-merriam"><span class="toggle-slider"></span></span>
+      </label>
+      <div id="word-lang-row" class="setting-row" style="display:none;flex-direction:column;align-items:flex-start;gap:8px;">
+        <div class="setting-row-label">Word Languages</div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <select id="word-lang1" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;">
+            <option value="English">English</option><option value="Spanish">Spanish</option><option value="French">French</option>
+            <option value="German">German</option><option value="Italian">Italian</option><option value="Portuguese">Portuguese</option>
+            <option value="Dutch">Dutch</option><option value="Russian">Russian</option><option value="Polish">Polish</option>
+            <option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option>
+            <option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option>
+            <option value="Hindi">Hindi</option><option value="Greek">Greek</option>
+          </select>
+          <span style="display:flex;align-items:center;color:var(--text2);font-size:0.8rem;">–</span>
+          <select id="word-lang2" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;">
+            <option value="French">French</option><option value="English">English</option><option value="Spanish">Spanish</option>
+            <option value="German">German</option><option value="Italian">Italian</option><option value="Portuguese">Portuguese</option>
+            <option value="Dutch">Dutch</option><option value="Russian">Russian</option><option value="Polish">Polish</option>
+            <option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option>
+            <option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option>
+            <option value="Hindi">Hindi</option><option value="Greek">Greek</option>
+          </select>
+        </div>
+        <div class="setting-row-sub" style="margin-top:2px;">Note: word pairs are English–French by default. Language labels are display only.</div>
+      </div>
     </div>
 
-    <!-- Top Sites -->
-    <div class="setting-group" style="padding: 10px;">
+    <div class="setting-group" style="padding:10px;">
       <div class="setting-group-label">Top Sites</div>
       <div class="setting-row">
-        <div>
-          <div class="setting-row-label">Show Most Visited</div>
-          <div class="setting-row-sub">Based on your history</div>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="toggle-topsites" checked>
-          <span class="toggle-slider"></span>
-        </label>
+        <div><div class="setting-row-label">Show Most Visited</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-topsites" checked><span class="toggle-slider"></span></label>
       </div>
       <div class="setting-row">
         <div class="setting-row-label">Max Sites Shown</div>
         <select id="topsites-count" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:4px 8px;font-family:var(--font);font-size:0.78rem;outline:none;">
-          <option value="6">6</option>
-          <option value="8" selected>8</option>
-          <option value="10">10</option>
-          <option value="12">12</option>
-          <option value="14">14</option>
-          <option value="16">16</option>
-          <option value="18">18</option>
+          <option value="6">6</option><option value="8" selected>8</option><option value="10">10</option>
+          <option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option>
         </select>
+      </div>
+      <div class="setting-row" style="cursor:pointer;" id="open-ignore-list-btn">
+        <div><div class="setting-row-label">Ignored Sites</div><div class="setting-row-sub">Sites hidden from Most Visited</div></div>
+        <span style="font-size:0.75rem;color:var(--accent);">Manage →</span>
       </div>
     </div>
 
-    <!-- Sidebar -->
-    <div class="setting-group" style="padding: 10px;">
+    <div class="setting-group" style="padding:10px;">
       <div class="setting-group-label">Sidebar</div>
       <div class="setting-row">
-        <div>
-          <div class="setting-row-label">Sidebar Content</div>
-          <div class="setting-row-sub">What to show in the left panel</div>
-        </div>
+        <div><div class="setting-row-label">Sidebar Content</div></div>
         <select id="sidebar-mode" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="activetabs">Active Tabs</option>
           <option value="mostvisited">Most Visited (10d)</option>
           <option value="stored">Stored Tabs</option>
           <option value="bookmarks">Bookmark Folder</option>
@@ -1012,19 +478,38 @@ select option {
         </select>
       </div>
       <div class="setting-row" id="bookmark-folder-row" style="display:none;">
-        <div>
-          <div class="setting-row-label">Folder</div>
-          <div class="setting-row-sub">Pick a bookmarks folder</div>
-        </div>
+        <div><div class="setting-row-label">Folder</div></div>
         <select id="bookmark-folder-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;max-width:140px;">
           <option value="">Loading…</option>
         </select>
       </div>
     </div>
 
+    <div class="setting-group" style="padding:10px;">
+      <div class="setting-group-label">Weather</div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">City</div><div class="setting-row-sub">For clock weather display</div></div>
+        <input id="settings-weather-city" type="text" placeholder="e.g. London" autocomplete="off"
+          style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.72rem;outline:none;width:110px;">
+      </div>
+    </div>
+
+  </div>
+
+  <div class="settings-footer">
+    <div class="settings-export-row">
+      <button class="settings-io-btn" id="settings-export-btn">⬆ Export Settings</button>
+      <button class="settings-io-btn" id="settings-import-btn">⬇ Import Settings</button>
+      <input type="file" id="settings-import-file" accept=".json" style="display:none">
+    </div>
+    <div class="settings-footer-credits">
+      Made by <strong>Bane Kondic</strong> &mdash;
+      <a href="https://github.com/banekondic1996/Extended-Page-Chrome" target="_blank">GitHub ↗</a>
+    </div>
   </div>
 </div>
 
+<script src="words.js"></script>
 <script src="newtab.js"></script>
 </body>
 </html>
