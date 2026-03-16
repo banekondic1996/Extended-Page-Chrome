@@ -59,13 +59,14 @@ const DEFAULT_NT = {
   blurAmount: 0, overlayOpacity: 72,
   showGreeting: false, greetingName: '', greetingFadeSecs: 4,
   showSearch: true, showClockWeather: false, hiResFeed: false,
-  randomWallpaper: false, uiFontSize: 100, clockTopOffset: 0,
+  randomWallpaper: true, uiFontSize: 100, clockTopOffset: 0,
+  wpAnimation: 'none', clockAnimation: 'none',
   grain: false, grainOpacity: 10, grainSize: 200,
   showExtraClocks: false, extraClocks: [],
   wordLang1: 'English', wordLang2: 'French',
   widgetFade: false, showWidgetDock: true, widgetTransparent: {},
-  widgets: { weather: false, timer: false, notes: false, currency: false, quotes: false, learn: false, merriam: false },
-  widgetOpen: { weather: true, timer: true, notes: true, currency: true, quotes: true, learn: true, merriam: true },
+  widgets: { weather: false, timer: false, notes: false, currency: false, quotes: false, learn: false, merriam: false, quicklinks: false, todo: false, calendar: false, crypto: false },
+  widgetOpen: { weather: true, timer: true, notes: true, currency: true, quotes: true, learn: true, merriam: true, quicklinks: true, todo: true, calendar: true, crypto: true },
   weatherCity: '', widgetPositions: {}
 };
 
@@ -84,6 +85,52 @@ if (ntSettings.showSearch === undefined) ntSettings.showSearch = true;
 if (ntSettings.overlayOpacity === undefined) ntSettings.overlayOpacity = 72;
 
 function saveSettings() { LS.set('nt_settings', ntSettings); }
+
+// ════════════════════════════════════════════ WALLPAPER FIRST PAINT
+// chrome.storage.local is async, so first-paint applies theme/overlay synchronously
+// and then immediately reads the preloaded blob to paint the wallpaper as fast as possible.
+// This runs before clocks, widgets, and all other init work.
+(function wallpaperFirstPaint() {
+  const bg = document.getElementById('wallpaper-bg');
+  if (!bg) return;
+
+  // Apply theme synchronously so there is no flash of wrong theme
+  document.documentElement.setAttribute('data-theme', ntSettings.theme || 'dark');
+
+  // Apply a neutral overlay immediately so the page doesn't flash unstyled
+  const isLight = ntSettings.theme === 'light';
+  const pct = isLight
+    ? (ntSettings.overlayOpacityLight !== undefined ? ntSettings.overlayOpacityLight : 20)
+    : (ntSettings.overlayOpacity      !== undefined ? ntSettings.overlayOpacity      : 72);
+  const alpha = (pct / 100).toFixed(2);
+  // Set overlay assuming a wallpaper will appear (corrected later by applyOverlayOpacity if not)
+  document.documentElement.style.setProperty('--wallpaper-overlay',
+    isLight ? `rgba(240,240,245,${alpha})` : `rgba(12,12,16,${alpha})`);
+
+  // Read preloaded blob from chrome.storage.local and paint immediately
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    const key = ntSettings.randomWallpaper ? 'nt_wp_next' : 'nt_wp_current';
+    chrome.storage.local.get(key, result => {
+      const entry = result[key];
+      if (!entry || !entry.dataUrl) {
+        // Nothing preloaded yet — applyRandomWallpaper() / applyWallpaper() will handle it
+        return;
+      }
+      if (ntSettings.randomWallpaper) {
+        bg.style.backgroundImage = "url('" + entry.dataUrl + "')";
+        bg.dataset.wpFirstPaint = 'random';
+      } else if (entry.url === ntSettings.wallpaper) {
+        bg.style.backgroundImage = "url('" + entry.dataUrl + "')";
+      }
+    });
+  } else {
+    // Fallback for non-extension context: paint static wallpaper URL directly
+    const wp = ntSettings.wallpaper;
+    if (!ntSettings.randomWallpaper && wp && wp !== 'none') {
+      bg.style.backgroundImage = "url('" + wp + "')";
+    }
+  }
+})();
 
 // ════════════════════════════════════════════ CLOCK
 function updateClock() {
@@ -145,6 +192,18 @@ function applyClockTop() {
   const label  = document.getElementById('clock-top-label');
   if (slider) slider.value = val;
   if (label)  label.textContent = val + 'px';
+}
+
+function triggerClockAnimation() {
+  const block = document.getElementById('clock-block');
+  if (!block) return;
+  const anim = ntSettings.clockAnimation || 'fade-up';
+  if (anim === 'none') { block.style.opacity = '1'; return; }
+  block.classList.remove('clock-anim-fade-up', 'clock-anim-fade');
+  void block.offsetWidth;
+  const cls = anim === 'fade' ? 'clock-anim-fade' : 'clock-anim-fade-up';
+  block.classList.add(cls);
+  block.addEventListener('animationend', () => block.classList.remove(cls), { once: true });
 }
 
 // ════════════════════════════════════════════ EXTRA CLOCKS
@@ -465,7 +524,7 @@ function applyTheme() {
 }
 document.getElementById('toggle-theme').addEventListener('change', e => {
   ntSettings.theme = e.target.checked ? 'dark' : 'light';
-  applyTheme(); applyWallpaper(); saveSettings();
+  applyTheme(); applyWallpaper(false); saveSettings();
 });
 applyTheme();
 
@@ -480,26 +539,135 @@ document.querySelectorAll('.accent-swatch').forEach(s =>
 applyAccent();
 
 // ════════════════════════════════════════════ WALLPAPER
-function applyWallpaper() {
-  const wp = ntSettings.wallpaper;
+
+// ── Storage keys for preloaded wallpaper blobs
+// Uses chrome.storage.local (not localStorage) — handles large image blobs reliably.
+const WP_CURRENT_KEY = 'nt_wp_current'; // { url, dataUrl } — currently displayed wallpaper
+const WP_NEXT_KEY    = 'nt_wp_next';    // { url, dataUrl } — preloaded for next tab open
+
+// Helper: read from chrome.storage.local, returns a Promise
+function csGet(key) {
+  return new Promise(resolve => {
+    if (typeof chrome === 'undefined' || !chrome.storage) { resolve(null); return; }
+    chrome.storage.local.get(key, r => resolve(r[key] || null));
+  });
+}
+// Helper: write to chrome.storage.local
+function csSet(key, value) {
+  if (typeof chrome === 'undefined' || !chrome.storage) return;
+  chrome.storage.local.set({ [key]: value });
+}
+
+// Fetch a fresh random photo from picsum.photos and store it in chrome.storage.local
+// as the preloaded wallpaper for the next tab open. No CORS issues in extensions.
+async function prefetchWallpaper() {
+  try {
+    const seed = Math.floor(Math.random() * 100000);
+    const w    = window.screen.width  || 1920;
+    const h    = window.screen.height || 1080;
+    const url  = `https://picsum.photos/seed/${seed}/${w}/${h}`;
+    const res  = await fetch(url);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    csSet(WP_NEXT_KEY, { url, dataUrl });
+  } catch {}
+}
+
+// Trigger the enter animation on #wallpaper-bg
+function triggerWpAnimation() {
   const bg = document.getElementById('wallpaper-bg');
-  if (!wp || wp === 'none') bg.style.backgroundImage = 'none';
-  else bg.style.backgroundImage = "url('" + wp + "')";
-  document.querySelectorAll('.wallpaper-thumb').forEach(t =>
-    t.classList.toggle('active', t.dataset.wp === wp));
+  if (!bg) return;
+  const anim = ntSettings.wpAnimation || 'fade-expand';
+  if (anim === 'none') return;
+  bg.classList.remove('wp-entering', 'wp-entering-fade');
+  void bg.offsetWidth; // force reflow so animation restarts
+  const cls = anim === 'fade' ? 'wp-entering-fade' : 'wp-entering';
+  bg.classList.add(cls);
+  bg.addEventListener('animationend', () => bg.classList.remove(cls), { once: true });
+}
+
+// Set a wallpaper URL (data-URL or remote) on #wallpaper-bg with animation
+function setWallpaperBg(url, animate) {
+  const bg = document.getElementById('wallpaper-bg');
+  if (!bg) return;
+  if (!url || url === 'none') {
+    bg.style.backgroundImage = 'none';
+    return;
+  }
+  bg.style.backgroundImage = "url('" + url + "')";
+  if (animate) triggerWpAnimation();
   applyOverlayOpacity();
 }
+
+function applyWallpaper(animate) {
+  const wp = ntSettings.wallpaper;
+  const bg = document.getElementById('wallpaper-bg');
+  document.querySelectorAll('.wallpaper-thumb').forEach(t =>
+    t.classList.toggle('active', t.dataset.wp === wp));
+  if (!wp || wp === 'none') {
+    bg.style.backgroundImage = 'none';
+    applyOverlayOpacity();
+    return;
+  }
+  // Try cached blob first (async), fall back to direct URL.
+  // Always wait for the image to finish loading before triggering the animation
+  // so the expand effect plays on a visible image, not a blank element.
+  csGet(WP_CURRENT_KEY).then(cached => {
+    const src = (cached && cached.url === wp && cached.dataUrl)
+      ? cached.dataUrl
+      : wp;
+
+    if (animate) {
+      const img = new Image();
+      img.onload = () => {
+        bg.style.backgroundImage = "url('" + src + "')";
+        triggerWpAnimation();
+        applyOverlayOpacity();
+      };
+      img.onerror = () => {
+        // Image failed — still show it, just skip the animation
+        bg.style.backgroundImage = "url('" + src + "')";
+        applyOverlayOpacity();
+      };
+      img.src = src;
+    } else {
+      bg.style.backgroundImage = "url('" + src + "')";
+      applyOverlayOpacity();
+    }
+  });
+}
+
 document.querySelectorAll('.wallpaper-thumb').forEach(t =>
-  t.addEventListener('click', () => { ntSettings.wallpaper = t.dataset.wp; applyWallpaper(); saveSettings(); }));
+  t.addEventListener('click', () => {
+    ntSettings.wallpaper = t.dataset.wp;
+    applyWallpaper(true);
+    saveSettings();
+    // Cache the selected wallpaper blob so next paint is instant
+    if (t.dataset.wp && t.dataset.wp !== 'none') {
+      fetch(t.dataset.wp).then(r => r.blob()).then(blob => {
+        const reader = new FileReader();
+        reader.onload = () => csSet(WP_CURRENT_KEY, { url: t.dataset.wp, dataUrl: reader.result });
+        reader.readAsDataURL(blob);
+      }).catch(() => {});
+    }
+  }));
 document.getElementById('wp-upload').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => { ntSettings.wallpaper = ev.target.result; applyWallpaper(); saveSettings(); };
+  reader.onload = ev => { ntSettings.wallpaper = ev.target.result; applyWallpaper(true); saveSettings(); };
   reader.readAsDataURL(file);
 });
-applyWallpaper();
+applyWallpaper(false);
 applyBlur();
 applySearchEngine();
+
+
 
 // Sliders
 document.getElementById('blur-slider').addEventListener('input', e => { ntSettings.blurAmount = parseInt(e.target.value); applyBlur(); saveSettings(); });
@@ -516,6 +684,7 @@ document.getElementById('clock-top-slider').addEventListener('input', e => {
   ntSettings.clockTopOffset = parseInt(e.target.value); applyClockTop(); saveSettings();
 });
 
+
 // ════════════════════════════════════════════ HIGH-RES FEED
 function applyHiResFeed() {
   const enabled = !!ntSettings.hiResFeed;
@@ -527,30 +696,82 @@ document.getElementById('toggle-hires-feed').addEventListener('change', e => { n
 applyHiResFeed();
 
 // ════════════════════════════════════════════ RANDOM WALLPAPER
-function getAllWallpapers() {
-  const list = [];
-  document.querySelectorAll('.wallpaper-thumb:not(.none-thumb)').forEach(t => {
-    if (t.dataset.wp && t.dataset.wp !== 'none' && t.style.display !== 'none') list.push(t.dataset.wp);
-  });
-  return list;
-}
-function applyRandomWallpaper() {
+async function applyRandomWallpaper() {
   if (!ntSettings.randomWallpaper) return;
-  const all = getAllWallpapers();
-  if (!all.length) return;
-  const wp = all[Math.floor(Math.random() * all.length)];
+
   const bg = document.getElementById('wallpaper-bg');
-  if (bg) bg.style.backgroundImage = "url('" + wp + "')";
-  applyOverlayOpacity();
+
+  // Check if first-paint already set the image from the preloaded blob
+  if (bg && bg.dataset.wpFirstPaint === 'random') {
+    delete bg.dataset.wpFirstPaint;
+    // Save what was painted as current, clear the next slot
+    const next = await csGet(WP_NEXT_KEY);
+    if (next) {
+      csSet(WP_CURRENT_KEY, next);
+      csSet(WP_NEXT_KEY, null);
+    }
+    triggerWpAnimation();
+    applyOverlayOpacity();
+    // Prefetch the next one in the background
+    prefetchWallpaper();
+    return;
+  }
+
+  // No first-paint — read from chrome.storage.local
+  const next = await csGet(WP_NEXT_KEY);
+
+  if (next && next.dataUrl) {
+    // Preloaded blob ready — paint it instantly
+    if (bg) bg.style.backgroundImage = "url('" + next.dataUrl + "')";
+    triggerWpAnimation();
+    applyOverlayOpacity();
+    csSet(WP_CURRENT_KEY, next);
+    csSet(WP_NEXT_KEY, null);
+  } else {
+    // Nothing preloaded yet (first ever open) — fetch directly from picsum
+    const w    = window.screen.width  || 1920;
+    const h    = window.screen.height || 1080;
+    const seed = Math.floor(Math.random() * 100000);
+    const url  = `https://picsum.photos/seed/${seed}/${w}/${h}`;
+    if (bg) {
+      const img = new Image();
+      img.onload = () => {
+        bg.style.backgroundImage = "url('" + img.src + "')";
+        triggerWpAnimation();
+        applyOverlayOpacity();
+      };
+      img.src = url;
+    }
+  }
+
+  // Always prefetch the next wallpaper in the background
+  prefetchWallpaper();
 }
+
 const toggleRandomWp = document.getElementById('toggle-random-wp');
 if (toggleRandomWp) {
   toggleRandomWp.checked = !!ntSettings.randomWallpaper;
   toggleRandomWp.addEventListener('change', e => {
     ntSettings.randomWallpaper = e.target.checked; saveSettings();
-    if (ntSettings.randomWallpaper) applyRandomWallpaper(); else applyWallpaper();
+    if (ntSettings.randomWallpaper) applyRandomWallpaper(); else applyWallpaper(true);
   });
 }
+
+// ════════════════════════════════════════════ ANIMATION SETTINGS
+(function() {
+  const wpAnimSel = document.getElementById('wp-anim-sel');
+  if (wpAnimSel) {
+    wpAnimSel.value = ntSettings.wpAnimation || 'fade-expand';
+    wpAnimSel.addEventListener('change', e => { ntSettings.wpAnimation = e.target.value; saveSettings(); });
+  }
+  const clockAnimSel = document.getElementById('clock-anim-sel');
+  if (clockAnimSel) {
+    clockAnimSel.value = ntSettings.clockAnimation || 'fade-up';
+    clockAnimSel.addEventListener('change', e => { ntSettings.clockAnimation = e.target.value; saveSettings(); });
+  }
+})();
+
+
 
 // ════════════════════════════════════════════ UI FONT SIZE
 function applyFontSize() {
@@ -817,17 +1038,25 @@ function renderStoredTabs(tabs) {
   tabs.forEach(tab => {
     let domain = '';
     try { domain = new URL(tab.url).hostname.replace(/^www\./, ''); } catch {}
-    const item = document.createElement('div');
+    // Use a real <a> so right-click gives the native link context menu (Open in new tab etc.)
+    const item = document.createElement('a');
     item.className = 'tab-item'; item.title = tab.title || tab.url;
+    item.href = tab.url;
+    item.style.textDecoration = 'none';
+    // Left-click: navigate and remove from storage
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      window.location.href = tab.url;
+      removeStoredTab(tab.id, item);
+    });
     const img = document.createElement('img'); img.className = 'tab-fav'; img.src = getFaviconUrlSm(domain);
     const ph = document.createElement('div'); ph.className = 'tab-fav';
     ph.style.cssText = 'display:none;background:linear-gradient(135deg,var(--accent),var(--accent2));align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;border-radius:5px';
     ph.textContent = (tab.title || domain || '?')[0].toUpperCase();
     img.addEventListener('error', () => { img.style.display = 'none'; ph.style.display = 'flex'; });
     const lbl = document.createElement('span'); lbl.className = 'tab-label'; lbl.textContent = tab.title || domain;
-    const rst = document.createElement('span'); rst.className = 'tab-restore'; rst.textContent = 'Open ✕';
+    const rst = document.createElement('span'); rst.className = 'tab-restore'; rst.textContent = 'Open';
     item.appendChild(img); item.appendChild(ph); item.appendChild(lbl); item.appendChild(rst);
-    item.addEventListener('click', () => { window.open(tab.url, '_blank'); removeStoredTab(tab.id, item); });
     list.appendChild(item);
   });
 }
@@ -1075,13 +1304,17 @@ function renderMerriamWord(data) {
 
 
 const WIDGET_DOCK_META = {
-  weather:  { icon: '🌤', label: 'Weather' },
-  timer:    { icon: '⏱', label: 'Timer' },
-  notes:    { icon: '📝', label: 'Notes' },
-  currency: { icon: '💱', label: 'Currency' },
-  quotes:   { icon: '💬', label: 'Quotes' },
-  learn:    { icon: '🔤', label: 'Learn Language' },
-  merriam:  { icon: '📖', label: 'Word of the Day' },
+  weather:    { icon: '🌤', label: 'Weather' },
+  timer:      { icon: '⏱', label: 'Timer' },
+  notes:      { icon: '📝', label: 'Notes' },
+  currency:   { icon: '💱', label: 'Currency' },
+  quotes:     { icon: '💬', label: 'Quotes' },
+  learn:      { icon: '🔤', label: 'Learn Language' },
+  merriam:    { icon: '📖', label: 'Word of the Day' },
+  quicklinks: { icon: '🔗', label: 'Quick Links' },
+  todo:       { icon: '✅', label: 'To-Do' },
+  calendar:   { icon: '📅', label: 'Calendar' },
+  crypto:     { icon: '₿',  label: 'Crypto' },
 };
 
 // ════════════════════════════════════════════ WIDGET DOCK
@@ -1126,7 +1359,7 @@ function renderWidgetDock() {
 }
 
 // ════════════════════════════════════════════ WIDGETS
-const ALL_WIDGETS = ['weather','timer','notes','currency','quotes','learn','merriam'];
+const ALL_WIDGETS = ['weather','timer','notes','currency','quotes','learn','merriam','quicklinks','todo','calendar','crypto'];
 
 // Enable/disable widget (checkbox toggle)
 function toggleWidget(id, show) {
@@ -1634,40 +1867,7 @@ document.getElementById('currency-swap').addEventListener('click', () => {
 });
 
 // ════════════════════════════════════════════ QUOTES WIDGET
-const QUOTES = [
-  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
-  { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
-  { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
-  { text: "It is during our darkest moments that we must focus to see the light.", author: "Aristotle" },
-  { text: "Spread love everywhere you go. Let no one ever come to you without leaving happier.", author: "Mother Teresa" },
-  { text: "When you reach the end of your rope, tie a knot in it and hang on.", author: "Franklin D. Roosevelt" },
-  { text: "Always remember that you are absolutely unique. Just like everyone else.", author: "Margaret Mead" },
-  { text: "Don't judge each day by the harvest you reap but by the seeds that you plant.", author: "Robert Louis Stevenson" },
-  { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
-  { text: "An unexamined life is not worth living.", author: "Socrates" },
-  { text: "When one door of happiness closes, another opens.", author: "Helen Keller" },
-  { text: "It's not whether you get knocked down, it's whether you get up.", author: "Vince Lombardi" },
-  { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair" },
-  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-  { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
-  { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
-  { text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas Edison" },
-  { text: "A person who never made a mistake never tried anything new.", author: "Albert Einstein" },
-  { text: "The mind is everything. What you think you become.", author: "Buddha" },
-  { text: "Strive not to be a success, but rather to be of value.", author: "Albert Einstein" },
-  { text: "Two roads diverged in a wood, and I took the one less traveled by.", author: "Robert Frost" },
-  { text: "The journey of a thousand miles begins with one step.", author: "Lao Tzu" },
-  { text: "That which does not kill us, makes us stronger.", author: "Friedrich Nietzsche" },
-  { text: "In three words I can sum up everything I've learned about life: it goes on.", author: "Robert Frost" },
-  { text: "Be yourself; everyone else is already taken.", author: "Oscar Wilde" },
-  { text: "You only live once, but if you do it right, once is enough.", author: "Mae West" },
-  { text: "Be the change you wish to see in the world.", author: "Mahatma Gandhi" },
-  { text: "Well-behaved women seldom make history.", author: "Laurel Thatcher Ulrich" },
-  { text: "Imagination is more important than knowledge.", author: "Albert Einstein" },
-  { text: "Logic will get you from A to Z; imagination will get you everywhere.", author: "Albert Einstein" },
-  { text: "Life is not measured by the number of breaths we take.", author: "Maya Angelou" },
-];
+// QUOTES array is loaded from quotes.js
 
 // Advance quote on every new tab/refresh — pick random index, avoid repeating last seen
 const lastQuoteIdx = LS.get('nt_quote_last', -1);
@@ -1711,7 +1911,9 @@ const LANG_CODES = {
   'Polish':     'pl', 'Swedish':   'sv', 'Norwegian':  'no', 'Danish':  'da',
   'Finnish':    'fi', 'Turkish':   'tr', 'Arabic':     'ar', 'Japanese':'ja',
   'Chinese':    'zh', 'Korean':    'ko', 'Hindi':      'hi', 'Greek':   'el',
+  'Latin':      'la', 'Serbian':    'sr',
 };
+
 
 // Advance word on every new tab using a shuffled permutation (no repeats until all seen)
 const WORD_PERM_KEY = 'nt_word_perm';
@@ -1746,22 +1948,37 @@ const WORD_CACHE_KEY = 'nt_word_cache';
 function getWordCache() { return LS.get(WORD_CACHE_KEY, {}); }
 function setWordCache(cache) { LS.set(WORD_CACHE_KEY, cache); }
 
+// ════════════════════════════════════════════ TRANSLATION + SPEECH
+// Uses the unofficial Google Translate endpoint — same one Chrome extension uses.
+// No API key needed. Works for all languages including Latin.
+// Google TTS endpoint returns an mp3 directly — also no key needed.
+
 async function translateWord(word, fromCode, toCode) {
   if (fromCode === toCode) return word;
   const cacheKey = `${word}|${fromCode}|${toCode}`;
   const cache = getWordCache();
   if (cache[cacheKey]) return cache[cacheKey];
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=${fromCode}|${toCode}`;
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${fromCode}&tl=${toCode}&dt=t&q=${encodeURIComponent(word)}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error();
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const raw = sanitizeText(data.responseData?.translatedText || '');
-    if (!raw || raw.toUpperCase().startsWith('MYMEMORY')) return word;
-    cache[cacheKey] = raw;
+    // Response shape: [[[translatedText, originalText, ...],...], ...]
+    const translated = data?.[0]?.[0]?.[0];
+    if (!translated) throw new Error('empty');
+    const clean = sanitizeText(translated).trim();
+    if (!clean) throw new Error('blank');
+    cache[cacheKey] = clean;
     setWordCache(cache);
-    return raw;
-  } catch { return word; }
+    return clean;
+  } catch {
+    return word; // fall back to original on any error
+  }
+}
+
+// Build Google TTS audio URL — returns mp3 directly, no key needed
+function googleTTSUrl(text, langCode) {
+  return `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${langCode}&client=gtx`;
 }
 
 async function showLearnWord(idx, animate) {
@@ -1782,6 +1999,13 @@ async function showLearnWord(idx, animate) {
     const safeW2 = sanitizeText(w2);
     const cap1 = safeW1.charAt(0).toUpperCase() + safeW1.slice(1);
     const cap2 = safeW2.charAt(0).toUpperCase() + safeW2.slice(1);
+    // Store for speak button (skip placeholder '…')
+    if (cap2 !== '…') {
+      window._learnLastW1 = cap1;
+      window._learnLastW2 = cap2;
+      window._learnCode1  = code1;
+      window._learnCode2  = code2;
+    }
     if (animate) {
       pairEl.classList.add('fade-out');
       setTimeout(() => {
@@ -1808,6 +2032,56 @@ document.getElementById('word-next').addEventListener('click', () => {
   currentWordIdx = (currentWordIdx + 1) % WORD_LIST.length;
   showLearnWord(currentWordIdx, true);
 });
+
+// ── SPEAK BUTTON — uses Google TTS mp3 endpoint (same as Google Translate speaker button)
+// Plays w1 then w2 sequentially via Audio elements. No Web Speech API, no voices to worry about.
+window._learnLastW1 = '';
+window._learnLastW2 = '';
+window._learnCode1  = 'en';
+window._learnCode2  = 'fr';
+
+(function() {
+  const speakBtn = document.getElementById('word-speak');
+  if (!speakBtn) return;
+
+  function resetBtn() {
+    speakBtn.disabled = false;
+    speakBtn.textContent = 'Speak';
+  }
+
+  function playAudio(url) {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio(url);
+      audio.onended = resolve;
+      audio.onerror = reject;
+      audio.play().catch(reject);
+    });
+  }
+
+speakBtn.addEventListener('click', async () => {
+    const w2    = window._learnLastW2;
+    const code2 = window._learnCode2 || 'fr';
+    if (!w2) return;
+
+    speakBtn.disabled = true;
+    speakBtn.textContent = '…';
+
+    try {
+      await playAudio(googleTTSUrl(w2, code2));
+    } catch (e) {
+      // Google TTS may block autoplay or fail — fall back to Web Speech silently
+      try {
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+          const u2 = new SpeechSynthesisUtterance(w2); u2.lang = code2;
+          window.speechSynthesis.speak(u2);
+        }
+      } catch {}
+    }
+
+    resetBtn();
+  });
+})();
 
 // Word lang settings
 const wordLangRow = document.getElementById('word-lang-row');
@@ -1925,5 +2199,6 @@ updateClock();
 
 applyGrain();
 applyClockTop();
+triggerClockAnimation();
 if (ntSettings.randomWallpaper) applyRandomWallpaper();
 renderWidgetDock();
