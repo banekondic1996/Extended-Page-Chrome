@@ -5,7 +5,7 @@ Fixed/changed in version 2.0.6:
 -Added speak button for learn languages and changed translations provider
 -Changed wallpaper provider
   
-Fixed/changed in version 2.0.7:
+Fixed/changed in version 2.0.7 (in testing branch):
 -Image loading optimizations
 -Clock animations optimizations
 -Added animation options
