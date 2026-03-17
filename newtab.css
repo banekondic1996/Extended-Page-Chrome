@@ -4,7 +4,7 @@
 :root {
   --accent: #3b9eff;
   --accent2: #2dd4a0;
-  --sidebar-w: 48px;
+  --sidebar-w: 0px;
   --sidebar-expanded: 300px;
   --bg: #0c0c10;
   --glass: rgba(255,255,255,0.04);
@@ -20,7 +20,7 @@
   --shadow2: 0 8px 32px rgba(47, 47, 47, 0.4);
   --font: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'DM Mono', monospace;
-  --wallpaper: none;
+  --wallpaper: rgb(48, 48, 48);
   --wallpaper-overlay: rgba(12,12,16,0.75);
   --grain-opacity: 0;
   --grain-size: 200px;

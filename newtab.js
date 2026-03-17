@@ -58,7 +58,8 @@ const DEFAULT_NT = {
   searchEngine: 'google', searchCustom: '',
   blurAmount: 0, overlayOpacity: 72,
   showGreeting: false, greetingName: '', greetingFadeSecs: 4,
-  showSearch: true, showClockWeather: false, hiResFeed: false,
+  enablePage2: true,
+  showSearch: true, showClockWeather: false, hiResFeed: true,
   randomWallpaper: true, uiFontSize: 100, clockTopOffset: 0,
   wpAnimation: 'none', clockAnimation: 'none',
   grain: false, grainOpacity: 10, grainSize: 200,
@@ -80,6 +81,7 @@ const _saved = LS.get('nt_settings', {});
 if (_saved && typeof _saved.showWidgetDock !== 'undefined') ntSettings.showWidgetDock = _saved.showWidgetDock;
 ntSettings.topsitesCount   = Math.min(18, Math.max(6, ntSettings.topsitesCount || 8));
 if (ntSettings.showClock  === undefined) ntSettings.showClock  = true;
+if (ntSettings.enablePage2 === undefined) ntSettings.enablePage2 = true;
 if (ntSettings.showDate   === undefined) ntSettings.showDate   = true;
 if (ntSettings.showSearch === undefined) ntSettings.showSearch = true;
 if (ntSettings.overlayOpacity === undefined) ntSettings.overlayOpacity = 72;
@@ -651,7 +653,8 @@ function applyHiResFeed() {
   const tog = document.getElementById('toggle-hires-feed');
   if (tog) tog.checked = enabled;
 }
-document.getElementById('toggle-hires-feed').addEventListener('change', e => { ntSettings.hiResFeed = e.target.checked; applyHiResFeed(); saveSettings(); });
+// Hi-res always on — toggle removed from UI
+ntSettings.hiResFeed = true;
 applyHiResFeed();
 
 // ════════════════════════════════════════════ RANDOM WALLPAPER
@@ -1291,30 +1294,41 @@ function renderWidgetDock() {
   if (ntSettings.showWidgetDock === false) return;
   Object.keys(WIDGET_DOCK_META).forEach(id => {
     if (!ntSettings.widgets[id]) return;
-    const w = document.getElementById('widget-' + id);
-    const isOpen = ntSettings.widgetOpen[id] !== false && w && w.style.display !== 'none';
     const meta = WIDGET_DOCK_META[id];
+    // Gather all instances for notes/todo (base + extras)
+    const instances = _getWidgetInstances(id);
+    const anyOpen = instances.some(el => el && el.style.display !== 'none');
     const btn = document.createElement('div');
-    btn.className = 'dock-btn' + (isOpen ? ' dock-active' : '');
+    btn.className = 'dock-btn' + (anyOpen ? ' dock-active' : '');
     btn.innerHTML = `${meta.icon}<span class="dock-btn-tooltip">${meta.label}</span>`;
     btn.addEventListener('click', () => {
-      if (w) {
-        const nowVisible = w.style.display !== 'none';
-        if (nowVisible) {
-          w.style.display = 'none';
-          ntSettings.widgetOpen[id] = false;
-        } else {
-          w.style.display = 'block';
+      if (anyOpen) {
+        instances.forEach(el => { if (!el) return; el.style.display = 'none'; });
+        ntSettings.widgetOpen[id] = false;
+      } else {
+        instances.forEach(el => {
+          if (!el) return;
+          el.style.display = 'block';
           ntSettings.widgetOpen[id] = true;
-          restoreWidgetPos(id);
-          bringWidgetToFront(w);
-        }
-        saveSettings();
+          restoreWidgetPos(el.id.replace('widget-', ''));
+          bringWidgetToFront(el);
+        });
       }
+      saveSettings();
       renderWidgetDock();
     });
     dock.appendChild(btn);
   });
+}
+
+/** Return the widget element + all extra instances for a given base id */
+function _getWidgetInstances(id) {
+  const els = [];
+  const w = document.getElementById('widget-' + id);
+  if (w) els.push(w);
+  if (id === 'notes') (ntSettings.extraNotes || []).forEach(e => { const el = document.getElementById('widget-' + e.id); if (el) els.push(el); });
+  if (id === 'todo')  (ntSettings.extraTodos  || []).forEach(e => { const el = document.getElementById('widget-' + e.id); if (el) els.push(el); });
+  return els;
 }
 
 // ════════════════════════════════════════════ WIDGETS
@@ -1324,15 +1338,24 @@ const ALL_WIDGETS = ['weather','timer','notes','currency','quotes','learn','merr
 function toggleWidget(id, show) {
   ntSettings.widgets[id] = show;
   if (!show) {
-    // disabling: hide widget entirely
     const w = document.getElementById('widget-' + id);
     if (w) w.style.display = 'none';
     ntSettings.widgetOpen[id] = false;
   } else {
-    // enabling: restore to open state
     ntSettings.widgetOpen[id] = true;
     const w = document.getElementById('widget-' + id);
-    if (w) { w.style.display = 'block'; restoreWidgetPos(id); }
+    if (w) {
+      // Always open on page-main unless this widget was explicitly saved to page 2
+      const savedPage = (ntSettings.widgetPage || {})[id];
+      if (savedPage !== 1) {
+        // Ensure it's in page-main
+        const page1 = document.getElementById('page-main');
+        if (page1 && w.parentElement !== page1) page1.appendChild(w);
+        if (savedPage === undefined) delete (ntSettings.widgetPage || {})[id];
+      }
+      w.style.display = 'block';
+      restoreWidgetPos(id);
+    }
   }
   saveSettings();
   renderWidgetDock();
@@ -1358,15 +1381,14 @@ function makeDraggable(widget) {
   });
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    const x = Math.max(0, Math.min(window.innerWidth  - widget.offsetWidth,  e.clientX - ox));
-    const y = Math.max(0, Math.min(window.innerHeight - widget.offsetHeight, e.clientY - oy));
+    // Use page-relative coordinates: widget is position:absolute inside its page
+    const page = widget.closest('.page') || document.getElementById('page-main');
+    const pr   = page ? page.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    const x = Math.max(0, Math.min(pr.width  - widget.offsetWidth,  e.clientX - pr.left - ox));
+    const y = Math.max(0, Math.min(pr.height - widget.offsetHeight, e.clientY - pr.top  - oy));
     widget.style.left = x + 'px'; widget.style.top = y + 'px';
-    // Save as fractions of viewport so position survives resize
     const id = widget.id.replace('widget-', '');
-    ntSettings.widgetPositions[id] = {
-      xFrac: x / window.innerWidth,
-      yFrac: y / window.innerHeight,
-    };
+    ntSettings.widgetPositions[id] = { xFrac: x / pr.width, yFrac: y / pr.height };
     saveSettings();
   });
   document.addEventListener('mouseup', () => { dragging = false; });
@@ -1376,82 +1398,17 @@ function restoreWidgetPos(id) {
   const pos = ntSettings.widgetPositions[id];
   const w   = document.getElementById('widget-' + id);
   if (!pos || !w) return;
-  // Support both old pixel format and new fraction format
-  const x = pos.xFrac != null
-    ? Math.round(pos.xFrac * window.innerWidth)
-    : (pos.left || 0);
-  const y = pos.yFrac != null
-    ? Math.round(pos.yFrac * window.innerHeight)
-    : (pos.top || 0);
-  // Clamp so widget stays inside viewport after resize
-  const cx = Math.max(0, Math.min(window.innerWidth  - w.offsetWidth,  x));
-  const cy = Math.max(0, Math.min(window.innerHeight - w.offsetHeight, y));
+  const page = w.closest('.page') || document.getElementById('page-main');
+  const pw   = page ? page.offsetWidth  : window.innerWidth;
+  const ph   = page ? page.offsetHeight : window.innerHeight;
+  const x = pos.xFrac != null ? Math.round(pos.xFrac * pw) : (pos.left || 0);
+  const y = pos.yFrac != null ? Math.round(pos.yFrac * ph) : (pos.top  || 0);
+  const cx = Math.max(0, Math.min(pw - w.offsetWidth,  x));
+  const cy = Math.max(0, Math.min(ph - w.offsetHeight, y));
   w.style.left = cx + 'px'; w.style.top = cy + 'px';
   w.style.bottom = 'auto'; w.style.right = 'auto';
 }
 
-ALL_WIDGETS.forEach(id => {
-  const el = document.getElementById('widget-' + id);
-  if (el) makeDraggable(el);
-});
-makeDraggable(document.getElementById('widget-ignorelist'));
-
-// Widget close buttons — collapse to dock, save open state
-document.querySelectorAll('.widget-close').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const id = btn.dataset.close;
-    if (id === 'ignorelist') { document.getElementById('widget-ignorelist').style.display = 'none'; return; }
-    const w = document.getElementById('widget-' + id);
-    if (w) w.style.display = 'none';
-    ntSettings.widgetOpen[id] = false;
-    saveSettings();
-    renderWidgetDock();
-  });
-});
-
-// Widget transparent toggle buttons
-const TRANSPARENT_WIDGETS = ['quotes', 'learn', 'merriam'];
-function applyWidgetTransparent(id, on) {
-  const w = document.getElementById('widget-' + id);
-  if (w) w.classList.toggle('widget-transparent', on);
-}
-// Load saved transparent state
-TRANSPARENT_WIDGETS.forEach(id => {
-  const saved = ntSettings.widgetTransparent || {};
-  applyWidgetTransparent(id, !!saved[id]);
-});
-document.querySelectorAll('.widget-transparent-btn').forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const id = btn.dataset.target;
-    const w = document.getElementById(id);
-    if (!w) return;
-    const nowTransparent = w.classList.toggle('widget-transparent');
-    if (!ntSettings.widgetTransparent) ntSettings.widgetTransparent = {};
-    ntSettings.widgetTransparent[id.replace('widget-', '')] = nowTransparent;
-    saveSettings();
-  });
-});
-ALL_WIDGETS.forEach(id => {
-  const chk = document.getElementById('chk-' + id);
-  if (!chk) return;
-  chk.addEventListener('change', e => {
-    toggleWidget(id, e.target.checked);
-    if (id === 'merriam' && e.target.checked) fetchMerriamWordOfDay();
-  });
-  chk.checked = !!ntSettings.widgets[id];
-  // Show/hide based on both enabled AND open state
-  const w = document.getElementById('widget-' + id);
-  if (w) {
-    const isEnabled = !!ntSettings.widgets[id];
-    const isOpen = ntSettings.widgetOpen[id] !== false;
-    w.style.display = (isEnabled && isOpen) ? 'block' : 'none';
-    if (isEnabled && isOpen) restoreWidgetPos(id);
-  }
-});
-
-// Fetch Merriam data on load if widget is enabled
-if (ntSettings.widgets.merriam) fetchMerriamWordOfDay();
 
 // ════════════════════════════════════════════ CLOCK FONT
 const clockFontSel = document.getElementById('clock-font-sel');
@@ -1461,604 +1418,6 @@ if (clockFontSel) {
 }
 applyClockFont();
 
-// ════════════════════════════════════════════ WEATHER SVG
-function getWeatherSVG(code) {
-  const c = parseInt(code);
-  const isClear        = c === 113;
-  const isPartlyCloudy = c === 116;
-  const isCloudy       = c === 119 || c === 122;
-  const isFog          = c === 143 || c === 248 || c === 260;
-  const isThunder      = c === 200 || c === 386 || c === 389 || c === 392 || c === 395;
-  const isSnow         = [179,182,185,281,284,311,314,317,320,323,326,329,332,335,338,350,368,371,374,377].includes(c);
-  const isRain         = [176,263,266,293,296,299,302,305,308,353,356,359].includes(c);
-  if (isThunder)      return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="22" rx="18" ry="12" fill="#7a8a9a"/><ellipse cx="22" cy="26" rx="12" ry="9" fill="#8fa0b0"/><ellipse cx="42" cy="26" rx="11" ry="8" fill="#8fa0b0"/><rect x="17" y="32" width="30" height="7" rx="3.5" fill="#9ab0c0"/><polyline points="33,38 28,50 34,50 29,62" stroke="#ffe033" stroke-width="3" stroke-linejoin="round" fill="none" stroke-linecap="round"/><line x1="22" y1="40" x2="22" y2="56" stroke="#6ab0ff" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/><line x1="42" y1="40" x2="42" y2="54" stroke="#6ab0ff" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/></svg>`;
-  if (isSnow)         return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="20" rx="18" ry="12" fill="#b0c4d8"/><ellipse cx="22" cy="24" rx="12" ry="9" fill="#c8d8e8"/><ellipse cx="42" cy="24" rx="11" ry="8" fill="#c8d8e8"/><rect x="17" y="30" width="30" height="7" rx="3.5" fill="#d8e8f4"/><circle cx="24" cy="50" r="3.5" fill="#aaccee"/><circle cx="32" cy="57" r="3.5" fill="#aaccee"/><circle cx="40" cy="50" r="3.5" fill="#aaccee"/></svg>`;
-  if (isRain)         return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="20" rx="18" ry="12" fill="#7a8a9a"/><ellipse cx="22" cy="24" rx="12" ry="9" fill="#8fa0b0"/><ellipse cx="42" cy="24" rx="11" ry="8" fill="#8fa0b0"/><rect x="17" y="30" width="30" height="7" rx="3.5" fill="#9ab0c0"/><line x1="24" y1="40" x2="21" y2="56" stroke="#6ab0ff" stroke-width="2.2" stroke-linecap="round"/><line x1="32" y1="40" x2="29" y2="58" stroke="#6ab0ff" stroke-width="2.2" stroke-linecap="round"/><line x1="40" y1="40" x2="37" y2="56" stroke="#6ab0ff" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-  if (isFog)          return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="16" width="48" height="5" rx="2.5" fill="#9ab0c0" opacity="0.75"/><rect x="14" y="27" width="36" height="5" rx="2.5" fill="#9ab0c0" opacity="0.62"/><rect x="10" y="38" width="44" height="5" rx="2.5" fill="#9ab0c0" opacity="0.50"/><rect x="18" y="49" width="28" height="5" rx="2.5" fill="#9ab0c0" opacity="0.38"/></svg>`;
-  if (isClear)        return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="13" fill="#ffe033"/><g stroke="#ffe033" stroke-width="2.5" stroke-linecap="round"><line x1="32" y1="6" x2="32" y2="13"/><line x1="32" y1="51" x2="32" y2="58"/><line x1="6" y1="32" x2="13" y2="32"/><line x1="51" y1="32" x2="58" y2="32"/><line x1="14" y1="14" x2="19" y2="19"/><line x1="45" y1="45" x2="50" y2="50"/><line x1="50" y1="14" x2="45" y2="19"/><line x1="19" y1="45" x2="14" y2="50"/></g></svg>`;
-  if (isPartlyCloudy) return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="36" r="11" fill="#ffe033"/><g stroke="#ffe033" stroke-width="2" stroke-linecap="round" opacity="0.85"><line x1="22" y1="12" x2="22" y2="17"/><line x1="22" y1="55" x2="22" y2="60"/><line x1="2" y1="36" x2="7" y2="36"/><line x1="37" y1="36" x2="42" y2="36"/><line x1="9" y1="23" x2="13" y2="27"/><line x1="31" y1="45" x2="35" y2="49"/><line x1="35" y1="23" x2="31" y2="27"/><line x1="13" y1="45" x2="9" y2="49"/></g><ellipse cx="43" cy="33" rx="14" ry="9" fill="#b0c0d0"/><ellipse cx="35" cy="36" rx="10" ry="7" fill="#c4d0dc"/><ellipse cx="51" cy="36" rx="9" ry="7" fill="#c4d0dc"/><rect x="30" y="38" width="26" height="6" rx="3" fill="#cad6e2"/></svg>`;
-  if (isCloudy)       return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="24" rx="18" ry="12" fill="#7a8a9a"/><ellipse cx="22" cy="28" rx="12" ry="9" fill="#8fa0b0"/><ellipse cx="42" cy="28" rx="11" ry="8" fill="#8fa0b0"/><rect x="17" y="32" width="30" height="8" rx="4" fill="#9ab0c0"/></svg>`;
-  return `<svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg"><ellipse cx="32" cy="28" rx="18" ry="12" fill="#8fa0b0"/><ellipse cx="22" cy="32" rx="12" ry="9" fill="#9ab0c0"/><ellipse cx="42" cy="32" rx="11" ry="8" fill="#9ab0c0"/><rect x="17" y="36" width="30" height="8" rx="4" fill="#a0b0c0"/></svg>`;
-}
-function getWeatherSVGSmall(code) { return getWeatherSVG(code).replace(/width="48" height="48"/g, 'width="24" height="24"'); }
-
-let weatherCity = ntSettings.weatherCity || '';
-let lastWeatherData = null;
-
-async function fetchWeather(city) {
-  document.getElementById('weather-desc').textContent = 'Loading…';
-  try {
-    const res  = await fetch('https://wttr.in/' + encodeURIComponent(city) + '?format=j1');
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    const cur  = data.current_condition[0];
-    const area = data.nearest_area[0];
-    document.getElementById('weather-icon').innerHTML = getWeatherSVG(cur.weatherCode);
-    const cityName    = area.areaName[0].value;
-    const regionName  = (area.region && area.region[0]) ? area.region[0].value : '';
-    const countryName = area.country[0].value;
-    const locationStr = cityName + (regionName && regionName !== cityName ? ', ' + regionName : '') + ', ' + countryName;
-    document.getElementById('weather-location').textContent = locationStr;
-    document.getElementById('weather-temp').textContent = cur.temp_C + '°C / ' + cur.temp_F + '°F';
-    document.getElementById('weather-desc').textContent = cur.weatherDesc[0].value;
-    ntSettings.weatherCity = city; saveSettings();
-    lastWeatherData = { code: cur.weatherCode, tempC: cur.temp_C, tempF: cur.temp_F, desc: cur.weatherDesc[0].value };
-    updateClockWeatherInline();
-  } catch { document.getElementById('weather-desc').textContent = 'City not found'; }
-}
-async function fetchWeatherForClock(city) {
-  if (!city) return;
-  try {
-    const res  = await fetch('https://wttr.in/' + encodeURIComponent(city) + '?format=j1');
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    const cur  = data.current_condition[0];
-    lastWeatherData = { code: cur.weatherCode, tempC: cur.temp_C, tempF: cur.temp_F, desc: cur.weatherDesc[0].value };
-    updateClockWeatherInline();
-  } catch {}
-}
-function updateClockWeatherInline() {
-  const el = document.getElementById('clock-weather-inline');
-  if (!ntSettings.showClockWeather || !lastWeatherData) { if (el) el.classList.remove('visible'); return; }
-  if (el) el.classList.add('visible');
-  const iconEl = document.getElementById('cwi-icon');
-  const tempEl = document.getElementById('cwi-temp');
-  const descEl = document.getElementById('cwi-desc');
-  if (iconEl) iconEl.innerHTML = getWeatherSVGSmall(lastWeatherData.code);
-  if (tempEl) tempEl.textContent = lastWeatherData.tempC + '°C';
-  if (descEl) descEl.textContent = lastWeatherData.desc;
-}
-document.getElementById('toggle-clock-weather').addEventListener('change', e => {
-  ntSettings.showClockWeather = e.target.checked; saveSettings(); updateClockWeatherInline();
-  if (ntSettings.showClockWeather && !lastWeatherData) {
-    const city = ntSettings.weatherCity || (document.getElementById('settings-weather-city') || {}).value;
-    if (city) fetchWeatherForClock(city);
-  }
-});
-document.getElementById('toggle-clock-weather').checked = !!ntSettings.showClockWeather;
-
-const settingsWeatherCity = document.getElementById('settings-weather-city');
-if (settingsWeatherCity) {
-  settingsWeatherCity.value = ntSettings.weatherCity || '';
-  let wcTimer;
-  settingsWeatherCity.addEventListener('input', e => {
-    clearTimeout(wcTimer);
-    wcTimer = setTimeout(() => {
-      const city = e.target.value.trim();
-      if (city) { ntSettings.weatherCity = city; saveSettings(); fetchWeather(city); const wci = document.getElementById('weather-city'); if (wci) wci.value = city; }
-    }, 600);
-  });
-}
-
-// City autocomplete
-const weatherCityInput = document.getElementById('weather-city');
-let suggestionBox = null, suggestionItems = [], selectedSuggIdx = -1, debounceTimer = null;
-function createSuggestionBox() {
-  if (suggestionBox) return;
-  suggestionBox = document.createElement('div');
-  suggestionBox.className = 'city-suggestions'; suggestionBox.style.display = 'none';
-  weatherCityInput.parentElement.appendChild(suggestionBox);
-}
-function hideSuggestions() { if (suggestionBox) suggestionBox.style.display = 'none'; selectedSuggIdx = -1; }
-function showSuggestions(cities) {
-  if (!suggestionBox) createSuggestionBox();
-  suggestionBox.innerHTML = ''; suggestionItems = cities; selectedSuggIdx = -1;
-  if (!cities.length) { suggestionBox.style.display = 'none'; return; }
-  cities.forEach(c => {
-    const item = document.createElement('div'); item.className = 'city-suggestion-item';
-    const region = c.admin1 ? ', ' + c.admin1 : '';
-    item.textContent = c.name + region + ', ' + c.country;
-    item.addEventListener('mousedown', e => { e.preventDefault(); weatherCityInput.value = c.name; hideSuggestions(); fetchWeather(c.name + region + ', ' + c.country); });
-    suggestionBox.appendChild(item);
-  });
-  suggestionBox.style.display = 'block';
-}
-async function fetchCitySuggestions(query) {
-  if (query.length < 2) { hideSuggestions(); return; }
-  try {
-    const res = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(query) + '&count=6&language=en&format=json');
-    if (!res.ok) return;
-    const data = await res.json();
-    showSuggestions((data.results || []).map(r => ({ name: r.name, admin1: r.admin1 || '', country: r.country || '' })));
-  } catch { hideSuggestions(); }
-}
-weatherCityInput.value = weatherCity;
-weatherCityInput.addEventListener('input', () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => fetchCitySuggestions(weatherCityInput.value.trim()), 280); });
-weatherCityInput.addEventListener('keydown', e => {
-  const items = suggestionBox ? suggestionBox.querySelectorAll('.city-suggestion-item') : [];
-  if (e.key === 'ArrowDown') { e.preventDefault(); selectedSuggIdx = Math.min(selectedSuggIdx + 1, items.length - 1); items.forEach((it, i) => it.classList.toggle('selected', i === selectedSuggIdx)); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); selectedSuggIdx = Math.max(selectedSuggIdx - 1, -1); items.forEach((it, i) => it.classList.toggle('selected', i === selectedSuggIdx)); }
-  else if (e.key === 'Enter') { if (selectedSuggIdx >= 0 && items[selectedSuggIdx]) items[selectedSuggIdx].dispatchEvent(new MouseEvent('mousedown')); else { const city = weatherCityInput.value.trim(); if (city) { hideSuggestions(); fetchWeather(city); } } }
-  else if (e.key === 'Escape') hideSuggestions();
-});
-weatherCityInput.addEventListener('blur', () => setTimeout(hideSuggestions, 150));
-createSuggestionBox();
-if (weatherCity) fetchWeather(weatherCity);
-else if (ntSettings.showClockWeather && ntSettings.weatherCity) fetchWeatherForClock(ntSettings.weatherCity);
-
-// ════════════════════════════════════════════ TIMER WIDGET
-let timerInterval = null, timerTotal = 0, timerRemaining = 0, timerRunning = false;
-const CIRCUMFERENCE = 2 * Math.PI * 36;
-
-// Timer beep using Web Audio API
-function playTimerBeep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const beepTimes = [0, 0.3, 0.6];
-    beepTimes.forEach(t => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine'; osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.6, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.25);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.3);
-    });
-    setTimeout(() => ctx.close(), 2000);
-  } catch {}
-}
-
-function formatTimerTime(secs) {
-  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-}
-function updateTimerDisplay() {
-  document.getElementById('timer-display').textContent = formatTimerTime(timerRemaining);
-  const ring = document.getElementById('timer-ring');
-  if (ring && timerTotal > 0) ring.style.strokeDashoffset = CIRCUMFERENCE * (1 - timerRemaining / timerTotal);
-  else if (ring) ring.style.strokeDashoffset = 0;
-}
-function startTimer() {
-  if (timerRunning) {
-    clearInterval(timerInterval); timerRunning = false;
-    document.getElementById('timer-start-btn').textContent = 'Resume';
-    document.getElementById('timer-status').textContent = 'Paused'; return;
-  }
-  if (timerRemaining <= 0) {
-    const raw = document.getElementById('timer-input').value.trim();
-    let secs = 0;
-    if (raw.includes(':')) { const parts = raw.split(':'); if (parts.length === 2) secs = parseInt(parts[0]||0)*60+parseInt(parts[1]||0); else if (parts.length === 3) secs = parseInt(parts[0]||0)*3600+parseInt(parts[1]||0)*60+parseInt(parts[2]||0); }
-    else secs = Math.round(parseFloat(raw) * 60) || 0;
-    if (secs <= 0) return;
-    timerTotal = secs; timerRemaining = secs;
-    document.getElementById('timer-ring').style.strokeDashoffset = 0;
-  }
-  timerRunning = true;
-  document.getElementById('timer-start-btn').textContent = 'Pause';
-  document.getElementById('timer-status').textContent = 'Running';
-  timerInterval = setInterval(() => {
-    timerRemaining--;
-    updateTimerDisplay();
-    if (timerRemaining <= 0) {
-      clearInterval(timerInterval); timerRunning = false;
-      document.getElementById('timer-start-btn').textContent = 'Start';
-      document.getElementById('timer-status').textContent = '✓ Done!';
-      playTimerBeep();
-      const ring = document.getElementById('timer-ring');
-      if (ring) { ring.style.stroke = '#2dd4a0'; setTimeout(() => { ring.style.stroke = 'var(--accent)'; }, 2000); }
-    }
-  }, 1000);
-}
-function resetTimer() {
-  clearInterval(timerInterval); timerRunning = false; timerRemaining = 0; timerTotal = 0;
-  document.getElementById('timer-display').textContent = '00:00';
-  document.getElementById('timer-start-btn').textContent = 'Start';
-  document.getElementById('timer-status').textContent = 'Ready';
-  const ring = document.getElementById('timer-ring');
-  if (ring) { ring.style.strokeDashoffset = 0; ring.style.stroke = 'var(--accent)'; }
-}
-document.getElementById('timer-start-btn').addEventListener('click', startTimer);
-document.getElementById('timer-reset-btn').addEventListener('click', resetTimer);
-document.querySelectorAll('.timer-preset').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const mins = parseInt(btn.dataset.mins);
-    timerTotal = mins * 60; timerRemaining = timerTotal;
-    document.getElementById('timer-input').value = mins >= 60 ? `${Math.floor(mins/60)}:00:00` : `${mins}:00`;
-    updateTimerDisplay();
-    document.getElementById('timer-status').textContent = 'Ready';
-    document.getElementById('timer-start-btn').textContent = 'Start';
-    clearInterval(timerInterval); timerRunning = false;
-  });
-});
-document.getElementById('tab-timer').addEventListener('click', () => {
-  document.getElementById('tab-timer').classList.add('active');
-  document.getElementById('tab-stopwatch').classList.remove('active');
-  document.getElementById('timer-mode-panel').style.display = '';
-  document.getElementById('stopwatch-mode-panel').style.display = 'none';
-});
-document.getElementById('tab-stopwatch').addEventListener('click', () => {
-  document.getElementById('tab-stopwatch').classList.add('active');
-  document.getElementById('tab-timer').classList.remove('active');
-  document.getElementById('stopwatch-mode-panel').style.display = '';
-  document.getElementById('timer-mode-panel').style.display = 'none';
-});
-
-// Stopwatch
-let swInterval = null, swRunning = false, swMs = 0, swLapCount = 0, swLastLap = 0;
-function formatSWTime(ms) {
-  const total = Math.floor(ms / 100), tenth = total % 10, secs = Math.floor(total / 10) % 60;
-  const mins = Math.floor(total / 600) % 60, hrs = Math.floor(total / 36000);
-  if (hrs > 0) return `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${tenth}`;
-  return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${tenth}`;
-}
-document.getElementById('sw-start-btn').addEventListener('click', () => {
-  if (swRunning) {
-    clearInterval(swInterval); swRunning = false;
-    document.getElementById('sw-start-btn').textContent = 'Resume';
-    document.getElementById('sw-status').textContent = 'Paused';
-  } else {
-    const t0 = Date.now() - swMs;
-    swInterval = setInterval(() => { swMs = Date.now() - t0; document.getElementById('stopwatch-display').textContent = formatSWTime(swMs); }, 100);
-    swRunning = true;
-    document.getElementById('sw-start-btn').textContent = 'Pause';
-    document.getElementById('sw-status').textContent = 'Running';
-  }
-});
-document.getElementById('sw-lap-btn').addEventListener('click', () => {
-  if (!swRunning && swMs === 0) return;
-  swLapCount++;
-  const lapTime = swMs - swLastLap; swLastLap = swMs;
-  const lapsEl = document.getElementById('sw-laps');
-  const row = document.createElement('div'); row.className = 'sw-lap';
-  row.innerHTML = `<span>Lap ${swLapCount}</span><span>${formatSWTime(lapTime)}</span><span>${formatSWTime(swMs)}</span>`;
-  lapsEl.insertBefore(row, lapsEl.firstChild);
-});
-document.getElementById('sw-reset-btn').addEventListener('click', () => {
-  clearInterval(swInterval); swRunning = false; swMs = 0; swLapCount = 0; swLastLap = 0;
-  document.getElementById('stopwatch-display').textContent = '00:00.0';
-  document.getElementById('sw-start-btn').textContent = 'Start';
-  document.getElementById('sw-status').textContent = 'Ready';
-  document.getElementById('sw-laps').innerHTML = '';
-});
-
-// ════════════════════════════════════════════ IGNORE LIST
-function renderIgnoreList() {
-  const body = document.getElementById('ignorelist-body');
-  if (!body) return;
-  const list = getIgnoreList();
-  body.innerHTML = '';
-  if (!list.length) { body.innerHTML = '<div style="font-size:0.78rem;color:var(--text2);padding:8px 0;text-align:center;">No ignored sites</div>'; return; }
-  list.forEach(domain => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--glass-border);';
-    const img = document.createElement('img');
-    img.src = getFaviconUrlSm(domain); img.style.cssText = 'width:16px;height:16px;border-radius:3px;flex-shrink:0;';
-    img.addEventListener('error', () => img.style.display = 'none');
-    const lbl = document.createElement('span'); lbl.textContent = domain;
-    lbl.style.cssText = 'flex:1;font-size:0.78rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    const restoreBtn = document.createElement('button'); restoreBtn.textContent = '×'; restoreBtn.title = 'Remove from ignore list';
-    restoreBtn.style.cssText = 'background:none;border:none;color:var(--accent);font-size:1rem;cursor:pointer;padding:0 4px;line-height:1;flex-shrink:0;';
-    restoreBtn.addEventListener('click', () => { saveIgnoreList(getIgnoreList().filter(d => d !== domain)); renderIgnoreList(); loadTopSites(); });
-    row.appendChild(img); row.appendChild(lbl); row.appendChild(restoreBtn);
-    body.appendChild(row);
-  });
-}
-document.getElementById('open-ignore-list-btn').addEventListener('click', () => {
-  closeSettings();
-  const w = document.getElementById('widget-ignorelist');
-  w.style.display = 'block'; renderIgnoreList(); bringWidgetToFront(w);
-  w.style.top = Math.max(60, (window.innerHeight - w.offsetHeight) / 2) + 'px';
-  w.style.transform = '';
-});
-document.getElementById('ignorelist-clear-btn').addEventListener('click', () => { saveIgnoreList([]); renderIgnoreList(); loadTopSites(); });
-
-// ════════════════════════════════════════════ NOTES
-const notesArea      = document.getElementById('notes-area');
-const notesCharCount = document.getElementById('notes-char-count');
-const notesSaved     = document.getElementById('notes-saved');
-let notesSaveTimer = null;
-notesArea.value = LS.get('nt_notes', '') || '';
-notesCharCount.textContent = notesArea.value.length + ' chars';
-notesArea.addEventListener('input', () => {
-  notesCharCount.textContent = notesArea.value.length + ' chars';
-  notesSaved.style.opacity = '0';
-  clearTimeout(notesSaveTimer);
-  notesSaveTimer = setTimeout(() => { LS.set('nt_notes', notesArea.value); notesSaved.style.opacity = '1'; setTimeout(() => notesSaved.style.opacity = '0', 1500); }, 600);
-});
-
-// ════════════════════════════════════════════ CURRENCY WIDGET
-const CURRENCIES = ['USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','SEK','NOK','DKK','PLN','CZK','HUF','RON','BGN','HRK','RSD','RUB','TRY','BRL','MXN','INR','IDR','MYR','PHP','SGD','THB','ZAR','KRW','AED','SAR','ILS','NGN','EGP','PKR','BDT','VND','UAH','TWD','HKD'];
-let exchangeRates = null, rateBase = 'USD';
-function populateCurrencySelects() {
-  ['currency-from','currency-to'].forEach((id, idx) => {
-    const sel = document.getElementById(id); if (!sel) return;
-    CURRENCIES.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
-    sel.value = idx === 0 ? (ntSettings.currencyFrom || 'USD') : (ntSettings.currencyTo || 'EUR');
-  });
-}
-populateCurrencySelects();
-async function fetchExchangeRates() {
-  const rateLabel = document.getElementById('currency-rate');
-  try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD');
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    exchangeRates = data.rates; rateBase = 'USD';
-    if (rateLabel) rateLabel.textContent = 'Rates loaded • ' + new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
-    convertCurrency();
-  } catch { if (rateLabel) rateLabel.textContent = 'Could not load rates'; }
-}
-fetchExchangeRates();
-setInterval(fetchExchangeRates, 30 * 60 * 1000);
-function convertCurrency() {
-  if (!exchangeRates) return;
-  const amount = parseFloat(document.getElementById('currency-amount').value) || 0;
-  const from   = document.getElementById('currency-from').value;
-  const to     = document.getElementById('currency-to').value;
-  if (!exchangeRates[from] || !exchangeRates[to]) return;
-  const inUSD  = amount / exchangeRates[from];
-  const result = inUSD * exchangeRates[to];
-  const rate   = exchangeRates[to] / exchangeRates[from];
-  document.getElementById('currency-result').textContent = result.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' ' + to;
-  document.getElementById('currency-result-input').value = result.toFixed(4);
-  document.getElementById('currency-rate').textContent = `1 ${from} = ${rate.toFixed(4)} ${to}`;
-  ntSettings.currencyFrom = from; ntSettings.currencyTo = to; saveSettings();
-}
-document.getElementById('currency-amount').addEventListener('input', convertCurrency);
-document.getElementById('currency-from').addEventListener('change', convertCurrency);
-document.getElementById('currency-to').addEventListener('change', convertCurrency);
-document.getElementById('currency-swap').addEventListener('click', () => {
-  const fromSel = document.getElementById('currency-from'), toSel = document.getElementById('currency-to');
-  const tmp = fromSel.value; fromSel.value = toSel.value; toSel.value = tmp;
-  convertCurrency();
-});
-
-// ════════════════════════════════════════════ QUOTES WIDGET
-// QUOTES array is loaded from quotes.js
-
-// Advance quote on every new tab/refresh — pick random index, avoid repeating last seen
-const lastQuoteIdx = LS.get('nt_quote_last', -1);
-let currentQuoteIdx = Math.floor(Math.random() * QUOTES.length);
-if (currentQuoteIdx === lastQuoteIdx && QUOTES.length > 1) {
-  currentQuoteIdx = (currentQuoteIdx + 1) % QUOTES.length;
-}
-LS.set('nt_quote_last', currentQuoteIdx);
-
-function showQuote(idx, animate) {
-  const textEl    = document.getElementById('quotes-text');
-  const authorEl  = document.getElementById('quotes-author');
-  const counterEl = document.getElementById('quotes-counter');
-  if (!textEl) return;
-  function set() {
-    textEl.textContent   = QUOTES[idx].text;
-    authorEl.textContent = '— ' + QUOTES[idx].author;
-    if (counterEl) counterEl.textContent = (idx + 1) + ' / ' + QUOTES.length;
-    textEl.classList.remove('fade-out'); authorEl.classList.remove('fade-out');
-  }
-  if (animate) {
-    textEl.classList.add('fade-out'); authorEl.classList.add('fade-out');
-    setTimeout(set, 350);
-  } else set();
-  currentQuoteIdx = idx;
-  LS.set('nt_quote_last', idx);
-}
-
-document.getElementById('quotes-next').addEventListener('click', () => {
-  showQuote((currentQuoteIdx + 1) % QUOTES.length, true);
-});
-showQuote(currentQuoteIdx, false);
-
-// ════════════════════════════════════════════ LEARN LANGUAGE WIDGET
-// WORD_LIST is loaded from words.js (3015 words)
-
-// Language name → MyMemory lang code
-const LANG_CODES = {
-  'English':    'en', 'Spanish':   'es', 'French':     'fr', 'German':  'de',
-  'Italian':    'it', 'Portuguese':'pt', 'Dutch':      'nl', 'Russian': 'ru',
-  'Polish':     'pl', 'Swedish':   'sv', 'Norwegian':  'no', 'Danish':  'da',
-  'Finnish':    'fi', 'Turkish':   'tr', 'Arabic':     'ar', 'Japanese':'ja',
-  'Chinese':    'zh', 'Korean':    'ko', 'Hindi':      'hi', 'Greek':   'el',
-  'Latin':      'la', 'Serbian':    'sr',
-};
-
-
-// Advance word on every new tab using a shuffled permutation (no repeats until all seen)
-const WORD_PERM_KEY = 'nt_word_perm';
-const WORD_POS_KEY  = 'nt_word_pos';
-
-function shuffleArray(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getNextWordIdx() {
-  let perm = LS.get(WORD_PERM_KEY, null);
-  let pos  = LS.get(WORD_POS_KEY,  0) || 0;
-  if (!perm || perm.length !== WORD_LIST.length || pos >= perm.length) {
-    perm = shuffleArray(WORD_LIST.map((_, i) => i));
-    pos  = 0;
-    LS.set(WORD_PERM_KEY, perm);
-  }
-  const idx = perm[pos];
-  LS.set(WORD_POS_KEY, pos + 1);
-  return idx;
-}
-
-let currentWordIdx = getNextWordIdx();
-
-// Translation cache: key = "word|fromCode|toCode"
-const WORD_CACHE_KEY = 'nt_word_cache';
-function getWordCache() { return LS.get(WORD_CACHE_KEY, {}); }
-function setWordCache(cache) { LS.set(WORD_CACHE_KEY, cache); }
-
-// ════════════════════════════════════════════ TRANSLATION + SPEECH
-// Uses the unofficial Google Translate endpoint — same one Chrome extension uses.
-// No API key needed. Works for all languages including Latin.
-// Google TTS endpoint returns an mp3 directly — also no key needed.
-
-async function translateWord(word, fromCode, toCode) {
-  if (fromCode === toCode) return word;
-  const cacheKey = `${word}|${fromCode}|${toCode}`;
-  const cache = getWordCache();
-  if (cache[cacheKey]) return cache[cacheKey];
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${fromCode}&tl=${toCode}&dt=t&q=${encodeURIComponent(word)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    // Response shape: [[[translatedText, originalText, ...],...], ...]
-    const translated = data?.[0]?.[0]?.[0];
-    if (!translated) throw new Error('empty');
-    const clean = sanitizeText(translated).trim();
-    if (!clean) throw new Error('blank');
-    cache[cacheKey] = clean;
-    setWordCache(cache);
-    return clean;
-  } catch {
-    return word; // fall back to original on any error
-  }
-}
-
-// Build Google TTS audio URL — returns mp3 directly, no key needed
-function googleTTSUrl(text, langCode) {
-  return `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${langCode}&client=gtx`;
-}
-
-async function showLearnWord(idx, animate) {
-  const pairEl = document.getElementById('word-pair');
-  const langEl = document.getElementById('word-lang-display');
-  if (!pairEl) return;
-
-  const word  = WORD_LIST[idx % WORD_LIST.length];
-  const lang1 = ntSettings.wordLang1 || 'English';
-  const lang2 = ntSettings.wordLang2 || 'French';
-  const code1 = LANG_CODES[lang1] || 'en';
-  const code2 = LANG_CODES[lang2] || 'fr';
-
-  if (langEl) langEl.textContent = lang1 + ' – ' + lang2;
-
-  const applyWords = (w1, w2) => {
-    const safeW1 = sanitizeText(w1);
-    const safeW2 = sanitizeText(w2);
-    const cap1 = safeW1.charAt(0).toUpperCase() + safeW1.slice(1);
-    const cap2 = safeW2.charAt(0).toUpperCase() + safeW2.slice(1);
-    // Store for speak button (skip placeholder '…')
-    if (cap2 !== '…') {
-      window._learnLastW1 = cap1;
-      window._learnLastW2 = cap2;
-      window._learnCode1  = code1;
-      window._learnCode2  = code2;
-    }
-    if (animate) {
-      pairEl.classList.add('fade-out');
-      setTimeout(() => {
-        pairEl.innerHTML = `${cap1}<span class="word-separator">–</span>${cap2}`;
-        pairEl.classList.remove('fade-out');
-      }, 350);
-    } else {
-      pairEl.innerHTML = `${cap1}<span class="word-separator">–</span>${cap2}`;
-    }
-  };
-
-  const capWord = word.charAt(0).toUpperCase() + word.slice(1);
-  applyWords(capWord, '…');
-
-  const [w1, w2] = await Promise.all([
-    code1 === 'en' ? Promise.resolve(capWord) : translateWord(word, 'en', code1),
-    code2 === 'en' ? Promise.resolve(capWord) : translateWord(word, 'en', code2),
-  ]);
-
-  applyWords(w1, w2);
-}
-
-document.getElementById('word-next').addEventListener('click', () => {
-  currentWordIdx = (currentWordIdx + 1) % WORD_LIST.length;
-  showLearnWord(currentWordIdx, true);
-});
-
-// ── SPEAK BUTTON — uses Google TTS mp3 endpoint (same as Google Translate speaker button)
-// Plays w1 then w2 sequentially via Audio elements. No Web Speech API, no voices to worry about.
-window._learnLastW1 = '';
-window._learnLastW2 = '';
-window._learnCode1  = 'en';
-window._learnCode2  = 'fr';
-
-(function() {
-  const speakBtn = document.getElementById('word-speak');
-  if (!speakBtn) return;
-
-  function resetBtn() {
-    speakBtn.disabled = false;
-    speakBtn.textContent = 'Speak';
-  }
-
-  function playAudio(url) {
-    return new Promise((resolve, reject) => {
-      const audio = new Audio(url);
-      audio.onended = resolve;
-      audio.onerror = reject;
-      audio.play().catch(reject);
-    });
-  }
-
-speakBtn.addEventListener('click', async () => {
-    const w2    = window._learnLastW2;
-    const code2 = window._learnCode2 || 'fr';
-    if (!w2) return;
-
-    speakBtn.disabled = true;
-    speakBtn.textContent = '…';
-
-    try {
-      await playAudio(googleTTSUrl(w2, code2));
-    } catch (e) {
-      // Google TTS may block autoplay or fail — fall back to Web Speech silently
-      try {
-        if (window.speechSynthesis) {
-          window.speechSynthesis.cancel();
-          const u2 = new SpeechSynthesisUtterance(w2); u2.lang = code2;
-          window.speechSynthesis.speak(u2);
-        }
-      } catch {}
-    }
-
-    resetBtn();
-  });
-})();
-
-// Word lang settings
-const wordLangRow = document.getElementById('word-lang-row');
-document.getElementById('chk-learn') && document.getElementById('chk-learn').addEventListener('change', e => {
-  if (wordLangRow) wordLangRow.style.display = e.target.checked ? '' : 'none';
-});
-if (wordLangRow) wordLangRow.style.display = ntSettings.widgets.learn ? '' : 'none';
-
-document.getElementById('word-lang1').value = ntSettings.wordLang1 || 'English';
-document.getElementById('word-lang2').value = ntSettings.wordLang2 || 'French';
-document.getElementById('word-lang1').addEventListener('change', e => {
-  ntSettings.wordLang1 = e.target.value; saveSettings(); showLearnWord(currentWordIdx, false);
-});
-document.getElementById('word-lang2').addEventListener('change', e => {
-  ntSettings.wordLang2 = e.target.value; saveSettings(); showLearnWord(currentWordIdx, false);
-});
-
-showLearnWord(currentWordIdx, false);
 
 // ════════════════════════════════════════════ KEYBOARD
 document.addEventListener('keydown', e => {
@@ -2066,7 +1425,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     if (searchInput && ntSettings.showSearch !== false) searchInput.focus();
   }
-  if (e.key === 'Escape') { closeSettings(); if (searchInput) searchInput.blur(); hideSuggestions(); }
+  if (e.key === 'Escape') { closeSettings(); if (searchInput) searchInput.blur(); }
 });
 
 // ════════════════════════════════════════════ RESPONSIVE WIDGET HIDE
@@ -2103,17 +1462,21 @@ function checkWidgetVisibility() {
     const isEnabled = !!ntSettings.widgets[id];
     const isOpen    = ntSettings.widgetOpen[id] !== false;
 
-    // Widget disabled or user-collapsed — keep hidden, not a collision issue
     if (!isEnabled || !isOpen) {
       collisionHidden.delete(id);
       w.style.display = 'none';
       return;
     }
 
-    // Always reposition from saved fractions at current viewport size FIRST
+    // Widgets on page 2 never collide with page-1 elements
+    if ((ntSettings.widgetPage || {})[id] === 1) {
+      w.style.display = 'block'; w.style.visibility = '';
+      collisionHidden.delete(id);
+      return;
+    }
+
     restoreWidgetPos(id);
 
-    // Temporarily force visible to get accurate bounding rect
     const prevDisplay = w.style.display;
     w.style.visibility = 'hidden';
     w.style.display = 'block';
@@ -2146,7 +1509,6 @@ window.addEventListener('resize', () => {
   repositionWidgetsOnResize();
   checkWidgetVisibility();
 });
-checkWidgetVisibility();
 
 // ════════════════════════════════════════════ STARTUP
 // Save screen resolution + settings mirror to chrome.storage.local so the
@@ -2166,4 +1528,398 @@ applyGrain();
 applyClockTop();
 triggerClockAnimation();
 if (ntSettings.randomWallpaper) applyRandomWallpaper();
-renderWidgetDock();
+
+// ════════════════════════════════════════════ WIDGET SCRIPTS BOOTSTRAP
+// Each widget is a self-contained .js file that:
+//   (a) immediately injects its own HTML via an IIFE at the bottom of the file
+//   (b) exposes window.initWidget_<id>() for the logic wiring
+// This bootstrap loads scripts for enabled widgets, then calls their init fns.
+
+const WIDGET_SCRIPTS = {
+  weather:    'widgets/weather.js',
+  timer:      'widgets/timer.js',
+  notes:      'widgets/notes.js',
+  currency:   'widgets/currency.js',
+  quotes:     'widgets/quotes.js',
+  learn:      'widgets/learn.js',
+  merriam:    'widgets/merriam.js',
+  quicklinks: 'widgets/quicklinks.js',
+  todo:       'widgets/todo.js',
+  calendar:   'widgets/calendar.js',
+  crypto:     'widgets/crypto.js',
+};
+
+function loadWidgetScript(src) {
+  return new Promise(resolve => {
+    if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload  = resolve;
+    s.onerror = () => { console.warn('[widgets] failed:', src); resolve(); };
+    document.head.appendChild(s);
+  });
+}
+
+/** Load + init a single widget on demand (e.g. user enables it in settings). */
+async function loadWidget(id) {
+  const src = WIDGET_SCRIPTS[id];
+  if (!src) return;
+  await loadWidgetScript(src);
+  const init = window['initWidget_' + id];
+  if (typeof init === 'function') init();
+}
+
+(async function bootstrapWidgets() {
+  // Always-on utility: ignorelist
+  await loadWidgetScript('widgets/ignorelist.js');
+  const initIL = window.initWidget_ignorelist;
+  if (typeof initIL === 'function') initIL();
+
+  // Load + init all currently-enabled widgets in parallel
+  const enabled = ALL_WIDGETS.filter(id => ntSettings.widgets[id]);
+  await Promise.all(enabled.map(id => loadWidgetScript(WIDGET_SCRIPTS[id])));
+  for (const id of enabled) {
+    const init = window['initWidget_' + id];
+    if (typeof init === 'function') init();
+  }
+
+  postWidgetSetup();
+})();
+
+function postWidgetSetup() {
+  // Draggable
+  ALL_WIDGETS.forEach(id => { const el = document.getElementById('widget-' + id); if (el) makeDraggable(el); });
+  const ignEl = document.getElementById('widget-ignorelist');
+  if (ignEl) makeDraggable(ignEl);
+
+  // Close buttons
+  document.querySelectorAll('.widget-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.close;
+      if (id === 'ignorelist') { const w = document.getElementById('widget-ignorelist'); if (w) w.style.display = 'none'; return; }
+      const w = document.getElementById('widget-' + id);
+      if (w) w.style.display = 'none';
+      ntSettings.widgetOpen[id] = false; saveSettings(); renderWidgetDock();
+    });
+  });
+
+  // Transparent toggle buttons
+  document.querySelectorAll('.widget-transparent-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const w = document.getElementById(btn.dataset.target);
+      if (!w) return;
+      const on = w.classList.toggle('widget-transparent');
+      if (!ntSettings.widgetTransparent) ntSettings.widgetTransparent = {};
+      ntSettings.widgetTransparent[btn.dataset.target.replace('widget-', '')] = on;
+      saveSettings();
+    });
+  });
+
+  // Restore saved transparent state
+  ['quotes','learn','merriam'].forEach(id => {
+    const w = document.getElementById('widget-' + id);
+    if (w) w.classList.toggle('widget-transparent', !!(ntSettings.widgetTransparent||{})[id]);
+  });
+
+  // Settings checkboxes — wire with on-demand loading
+  ALL_WIDGETS.forEach(id => {
+    const chk = document.getElementById('chk-' + id);
+    if (!chk) return;
+    chk.checked = !!ntSettings.widgets[id];
+    chk.addEventListener('change', async e => {
+      if (e.target.checked) {
+        await loadWidget(id);
+        const w = document.getElementById('widget-' + id);
+        if (w) {
+          makeDraggable(w);
+          // New widgets always start on page-main unless previously assigned to p2
+          const savedPage = (ntSettings.widgetPage || {})[id];
+          if (savedPage === 1) {
+            assignWidgetPage(id, w);
+          } else {
+            const page1 = document.getElementById('page-main');
+            if (page1 && w.parentElement !== page1) page1.appendChild(w);
+          }
+        }
+      }
+      toggleWidget(id, e.target.checked);
+      if (id === 'learn') {
+        const row = document.getElementById('word-lang-row');
+        if (row) row.style.display = e.target.checked ? '' : 'none';
+      }
+    });
+
+    // Initial visibility + position
+    const w = document.getElementById('widget-' + id);
+    if (w) {
+      const show = !!ntSettings.widgets[id] && ntSettings.widgetOpen[id] !== false;
+      w.style.display = show ? 'block' : 'none';
+      if (show) { restoreWidgetPos(id); assignWidgetPage(id, w); }
+    }
+  });
+
+  // toggle-page2
+  var togP2 = document.getElementById("toggle-page2");
+  if (togP2) {
+    togP2.checked = ntSettings.enablePage2 !== false;
+    togP2.addEventListener("change", function(e) {
+      ntSettings.enablePage2 = e.target.checked; saveSettings();
+      if (typeof window.applyPage2Enabled === "function") window.applyPage2Enabled();
+    });
+  }
+
+  // word-lang-row visibility (settings panel row)
+  const wordLangRow = document.getElementById('word-lang-row');
+  if (wordLangRow) wordLangRow.style.display = ntSettings.widgets.learn ? '' : 'none';
+
+  // settings-weather-city input (in settings panel, not inside weather widget)
+  const settingsWeatherCity = document.getElementById('settings-weather-city');
+  if (settingsWeatherCity) {
+    settingsWeatherCity.value = ntSettings.weatherCity || '';
+    let wcTimer;
+    settingsWeatherCity.addEventListener('input', e => {
+      clearTimeout(wcTimer);
+      wcTimer = setTimeout(() => {
+        const city = e.target.value.trim();
+        if (!city) return;
+        ntSettings.weatherCity = city; saveSettings();
+        if (typeof window.fetchWeather === 'function') window.fetchWeather(city);
+        const wci = document.getElementById('weather-city');
+        if (wci) wci.value = city;
+      }, 600);
+    });
+  }
+
+  // toggle-clock-weather (settings panel toggle)
+  const togCW = document.getElementById('toggle-clock-weather');
+  if (togCW) {
+    togCW.checked = !!ntSettings.showClockWeather;
+    togCW.addEventListener('change', e => {
+      ntSettings.showClockWeather = e.target.checked; saveSettings();
+      if (typeof window.updateClockWeatherInline === 'function') window.updateClockWeatherInline();
+      if (ntSettings.showClockWeather && !window.lastWeatherData) {
+        const city = ntSettings.weatherCity;
+        if (city && typeof window.fetchWeatherForClock === 'function') window.fetchWeatherForClock(city);
+      }
+    });
+  }
+
+  checkWidgetVisibility();
+  renderWidgetDock();
+}
+
+// ════════════════════════════════════════════ SCROLL-SNAP TWO-PAGE SYSTEM
+(function initScrollPages() {
+  const pagesEl = document.getElementById('pages');
+  const page1   = document.getElementById('page-main');
+  const page2   = document.getElementById('page-workspace');
+  if (!pagesEl || !page1 || !page2) return;
+
+  function applyPage2Enabled() {
+    const on = ntSettings.enablePage2 !== false;
+    page2.style.display = on ? '' : 'none';
+    // scroll-snap-type only works when there are snappable children
+    pagesEl.style.overflowY = on ? 'scroll' : 'hidden';
+    const hint = document.getElementById('scroll-hint');
+    if (hint) hint.style.display = on ? '' : 'none';
+    if (!on && pagesEl.scrollTop > 0) pagesEl.scrollTo({ top: 0, behavior: 'instant' });
+    const tog = document.getElementById('toggle-page2');
+    if (tog) tog.checked = on;
+  }
+
+  let currentPage = 0;
+  function update() {
+    const onPage2 = pagesEl.scrollTop > page1.offsetHeight / 2;
+    pagesEl.classList.toggle('page2-active', onPage2);
+    currentPage = onPage2 ? 1 : 0;
+  }
+  pagesEl.addEventListener('scroll', update, { passive: true });
+  update();
+  applyPage2Enabled();
+
+  window.scrollToPage      = idx => { if (ntSettings.enablePage2 !== false || idx === 0) pagesEl.scrollTo({ top: idx * page1.offsetHeight, behavior: 'smooth' }); };
+  window.getCurrentPage    = () => currentPage;
+  window.applyPage2Enabled = applyPage2Enabled;
+})();
+
+// ════════════════════════════════════════════ WIDGET PAGE ASSIGNMENT
+// Ctrl+click any widget header to move it between page 1 and page 2.
+if (!ntSettings.widgetPage) ntSettings.widgetPage = {};
+
+function assignWidgetPage(id, el) {
+  if (!el) return;
+  const idx    = (ntSettings.widgetPage[id] !== undefined) ? ntSettings.widgetPage[id] : 0;
+  const target = idx === 1 ? document.getElementById('page-workspace') : document.getElementById('page-main');
+  if (target && el.parentElement !== target) target.appendChild(el);
+}
+
+document.addEventListener('click', e => {
+  if (!e.ctrlKey) return;
+  const header = e.target.closest('.widget-header');
+  if (!header) return;
+  const widget = header.closest('.widget');
+  if (!widget) return;
+  const id = widget.id.replace('widget-', '');
+  if (!id || id === 'ignorelist') return;
+  const next = ((ntSettings.widgetPage[id] || 0) === 0) ? 1 : 0;
+  ntSettings.widgetPage[id] = next; saveSettings();
+  assignWidgetPage(id, widget);
+  _showPageToast(next === 1 ? 'Moved to Workspace ↓' : 'Moved to Home ↑');
+});
+
+function _showPageToast(msg) {
+  let t = document.getElementById('_pg_toast');
+  if (!t) {
+    t = document.createElement('div'); t.id = '_pg_toast';
+    t.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:7px 18px;border-radius:20px;font-size:0.78rem;pointer-events:none;z-index:9999;opacity:0;transition:opacity 0.3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._t); t._t = setTimeout(() => { t.style.opacity = '0'; }, 2200);
+}
+
+// checkWidgetVisibility already handles page-2 widgets natively (see above)
+
+// ════════════════════════════════════════════ ARROW CLICK → SNAP PAGE
+// The #scroll-hint arrow on page 1 and #scroll-up-hint on page 2 are clickable.
+document.addEventListener('click', e => {
+  if (e.target.closest('#scroll-hint'))    { e.stopPropagation(); window.scrollToPage && window.scrollToPage(1); }
+  if (e.target.closest('#scroll-up-hint')) { e.stopPropagation(); window.scrollToPage && window.scrollToPage(0); }
+});
+// Make the arrows look clickable
+(function styleArrows() {
+  const style = document.createElement('style');
+  style.textContent = `
+    #scroll-hint, #scroll-up-hint { cursor: pointer; pointer-events: auto !important; }
+    #scroll-hint:hover, #scroll-up-hint:hover { opacity: 0.7 !important; }
+  `;
+  document.head.appendChild(style);
+})();
+
+// ════════════════════════════════════════════ DUPLICATE NOTES / TODO
+// Extra instances of notes/todo. Spawner functions call into widget JS.
+
+if (!ntSettings.extraNotes) ntSettings.extraNotes = [];
+if (!ntSettings.extraTodos) ntSettings.extraTodos = [];
+
+function _genInstanceId(base) { return base + "_" + Date.now().toString(36); }
+function _esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function addNotesInstance(title) {
+  var instId = _genInstanceId("notes");
+  ntSettings.extraNotes.push({ id: instId, title: title || "Notes" });
+  ntSettings.widgets[instId] = true; ntSettings.widgetOpen[instId] = true;
+  saveSettings(); _spawnNotesWidget(instId, title || "Notes");
+}
+function addTodoInstance(title) {
+  var instId = _genInstanceId("todo");
+  ntSettings.extraTodos.push({ id: instId, title: title || "To-Do" });
+  ntSettings.widgets[instId] = true; ntSettings.widgetOpen[instId] = true;
+  saveSettings(); _spawnTodoWidget(instId, title || "To-Do");
+}
+
+function _spawnNotesWidget(instId, title) {
+  if (document.getElementById("widget-" + instId)) return;
+  var div = document.createElement("div");
+  div.innerHTML =
+    '<div class="widget" id="widget-' + instId + '" style="display:block;">' +
+    '<div class="widget-header"><span>\uD83D\uDCDD</span>' +
+    '<span class="widget-title">' + _esc(title) + '</span>' +
+    '<button class="widget-close" data-close="' + instId + '">&times;</button></div>' +
+    '<textarea class="notes-area" id="notes-area-' + instId + '" placeholder="Jot something down\u2026" spellcheck="false"></textarea>' +
+    '<div class="notes-footer"><span id="notes-char-count-' + instId + '">0 chars</span>' +
+    '<span class="notes-saved" id="notes-saved-' + instId + '" style="opacity:0">Saved \u2713</span></div>' +
+    '</div>';
+  var el = div.firstElementChild;
+  (document.getElementById("page-main") || document.body).appendChild(el);
+  if (typeof window._initNotesInstance === "function") window._initNotesInstance(instId);
+  if (typeof window._makeNotesTitleEditable === "function") window._makeNotesTitleEditable(el, instId, ntSettings.extraNotes);
+  makeDraggable(el);
+  el.querySelector(".widget-close").addEventListener("click", function() {
+    ntSettings.extraNotes = (ntSettings.extraNotes || []).filter(function(n) { return n.id !== instId; });
+    delete ntSettings.widgets[instId]; delete ntSettings.widgetOpen[instId];
+    delete ntSettings.widgetPositions[instId];
+    if (ntSettings.widgetPage) delete ntSettings.widgetPage[instId];
+    saveSettings(); el.remove(); renderWidgetDock();
+  });
+  renderWidgetDock();
+}
+
+function _spawnTodoWidget(instId, title) {
+  if (document.getElementById("widget-" + instId)) return;
+  var div = document.createElement("div");
+  div.innerHTML =
+    '<div class="widget" id="widget-' + instId + '" style="display:block;">' +
+    '<div class="widget-header"><span>\u2705</span>' +
+    '<span class="widget-title">' + _esc(title) + '</span>' +
+    '<span id="todo-counter-' + instId + '" class="todo-header-counter"></span>' +
+    '<button class="widget-close" data-close="' + instId + '">&times;</button></div>' +
+    '<div id="todo-list-' + instId + '" class="todo-list"></div>' +
+    '<div class="todo-footer">' +
+    '<div class="todo-input-row">' +
+    '<input type="text" id="todo-input-' + instId + '" class="todo-input" placeholder="New task\u2026" autocomplete="off" spellcheck="false">' +
+    '<button id="todo-add-btn-' + instId + '" class="todo-add-btn" title="Add task">+</button>' +
+    '</div>' +
+    '<div class="todo-footer-btns">' +
+    '<button id="todo-clear-done-' + instId + '" class="todo-clear-btn">Clear done</button>' +
+    '</div>' +
+    '</div></div>';
+  var el = div.firstElementChild;
+  (document.getElementById("page-main") || document.body).appendChild(el);
+  if (typeof window._initTodoInstance === "function") window._initTodoInstance(instId);
+  if (typeof window._makeTodoTitleEditable === "function") window._makeTodoTitleEditable(el, instId, ntSettings.extraTodos);
+  makeDraggable(el);
+  el.querySelector(".widget-close").addEventListener("click", function() {
+    ntSettings.extraTodos = (ntSettings.extraTodos || []).filter(function(t) { return t.id !== instId; });
+    delete ntSettings.widgets[instId]; delete ntSettings.widgetOpen[instId];
+    delete ntSettings.widgetPositions[instId];
+    if (ntSettings.widgetPage) delete ntSettings.widgetPage[instId];
+    saveSettings(); el.remove(); renderWidgetDock();
+  });
+  renderWidgetDock();
+}
+
+// Restore extra instances on load — also prune stale/zombie entries
+(function restoreExtraInstances() {
+  // Prune entries explicitly disabled by user (widget[id] === false)
+  // and orphan entries from old broken sessions (id exists in extraNotes but widget
+  // was disabled=false or explicitly removed).
+  ntSettings.extraNotes = (ntSettings.extraNotes || []).filter(function(e) {
+    return ntSettings.widgets[e.id] !== false;
+  });
+  ntSettings.extraTodos = (ntSettings.extraTodos || []).filter(function(e) {
+    return ntSettings.widgets[e.id] !== false;
+  });
+  saveSettings();
+  setTimeout(function() {
+    (ntSettings.extraNotes || []).forEach(function(entry) {
+      _spawnNotesWidget(entry.id, entry.title || "Notes");
+    });
+    (ntSettings.extraTodos || []).forEach(function(entry) {
+      _spawnTodoWidget(entry.id, entry.title || "To-Do");
+    });
+  }, 200);
+})();
+
+// + duplicate buttons in settings panel
+(function addDuplicateButtons() {
+  setTimeout(function() {
+    ["notes","todo"].forEach(function(base) {
+      var row = document.querySelector(".widget-toggle-row[for=\"chk-" + base + "\"]");
+      if (!row || row.querySelector(".dup-btn")) return;
+      var btn = document.createElement("button");
+      btn.className = "dup-btn"; btn.title = "Duplicate"; btn.textContent = "+";
+      btn.style.cssText = "margin-left:6px;background:none;border:1px solid var(--glass-border);border-radius:6px;color:var(--text2);padding:2px 7px;font-size:0.8rem;cursor:pointer;flex-shrink:0;";
+      btn.addEventListener("click", function(e) {
+        e.preventDefault(); e.stopPropagation();
+        var name = prompt("Name for the new " + (base === "notes" ? "Notes" : "To-Do") + " widget:", base === "notes" ? "Notes" : "To-Do");
+        if (name === null) return;
+        if (base === "notes") addNotesInstance(name || "Notes");
+        else addTodoInstance(name || "To-Do");
+      });
+      var toggle = row.querySelector(".toggle");
+      if (toggle) row.insertBefore(btn, toggle); else row.appendChild(btn);
+    });
+  }, 100);
+})();
