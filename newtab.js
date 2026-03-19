@@ -1,5 +1,5 @@
 // ══ EXTENDED HISTORY BRIDGE ══════════════════════════════════════════════
-const EH_EXTENSION_ID = 'cdfgfljiefjinljmnedgkfhgcgldkhkk';
+const EH_EXTENSION_ID = 'cafkcdbcpedhmjmnkbgkecahgkoclhji';
 let ehAvailable = false;
 
 function ehSend(message) {
@@ -61,6 +61,7 @@ const DEFAULT_NT = {
   showSearch: true, showClockWeather: false, hiResFeed: false,
   randomWallpaper: true, uiFontSize: 100, clockTopOffset: 0,
   wpAnimation: 'none', clockAnimation: 'none',
+  clockType: 'digital', mainClockSizePx: 200,
   grain: false, grainOpacity: 10, grainSize: 200,
   showExtraClocks: false, extraClocks: [],
   wordLang1: 'English', wordLang2: 'French',
@@ -84,55 +85,72 @@ if (ntSettings.showDate   === undefined) ntSettings.showDate   = true;
 if (ntSettings.showSearch === undefined) ntSettings.showSearch = true;
 if (ntSettings.overlayOpacity === undefined) ntSettings.overlayOpacity = 72;
 
-function saveSettings() { LS.set('nt_settings', ntSettings); }
+function saveSettings() {
+  LS.set('nt_settings', ntSettings);
+  // Mirror randomWallpaper flag to chrome.storage.local so the background
+  // service worker can check it without access to localStorage.
+  csSet('nt_settings', { randomWallpaper: ntSettings.randomWallpaper });
+}
 
-// ════════════════════════════════════════════ WALLPAPER FIRST PAINT
-// chrome.storage.local is async, so first-paint applies theme/overlay synchronously
-// and then immediately reads the preloaded blob to paint the wallpaper as fast as possible.
-// This runs before clocks, widgets, and all other init work.
-(function wallpaperFirstPaint() {
-  const bg = document.getElementById('wallpaper-bg');
-  if (!bg) return;
-
-  // Apply theme synchronously so there is no flash of wrong theme
-  document.documentElement.setAttribute('data-theme', ntSettings.theme || 'dark');
-
-  // Apply a neutral overlay immediately so the page doesn't flash unstyled
-  const isLight = ntSettings.theme === 'light';
-  const pct = isLight
-    ? (ntSettings.overlayOpacityLight !== undefined ? ntSettings.overlayOpacityLight : 20)
-    : (ntSettings.overlayOpacity      !== undefined ? ntSettings.overlayOpacity      : 72);
-  const alpha = (pct / 100).toFixed(2);
-  // Set overlay assuming a wallpaper will appear (corrected later by applyOverlayOpacity if not)
-  document.documentElement.style.setProperty('--wallpaper-overlay',
-    isLight ? `rgba(240,240,245,${alpha})` : `rgba(12,12,16,${alpha})`);
-
-  // Read preloaded blob from chrome.storage.local and paint immediately
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    const key = ntSettings.randomWallpaper ? 'nt_wp_next' : 'nt_wp_current';
-    chrome.storage.local.get(key, result => {
-      const entry = result[key];
-      if (!entry || !entry.dataUrl) {
-        // Nothing preloaded yet — applyRandomWallpaper() / applyWallpaper() will handle it
-        return;
-      }
-      if (ntSettings.randomWallpaper) {
-        bg.style.backgroundImage = "url('" + entry.dataUrl + "')";
-        bg.dataset.wpFirstPaint = 'random';
-      } else if (entry.url === ntSettings.wallpaper) {
-        bg.style.backgroundImage = "url('" + entry.dataUrl + "')";
-      }
-    });
-  } else {
-    // Fallback for non-extension context: paint static wallpaper URL directly
-    const wp = ntSettings.wallpaper;
-    if (!ntSettings.randomWallpaper && wp && wp !== 'none') {
-      bg.style.backgroundImage = "url('" + wp + "')";
-    }
-  }
-})();
 
 // ════════════════════════════════════════════ CLOCK
+function _buildMainAnalogMarkers() {
+  const hmG = document.getElementById('main-cw-hour-markers');
+  const mmG = document.getElementById('main-cw-min-markers');
+  const nmG = document.getElementById('main-cw-numbers');
+  if (!hmG) return;
+  hmG.innerHTML = ''; mmG.innerHTML = ''; if (nmG) nmG.innerHTML = '';
+  for (let i = 0; i < 60; i++) {
+    const angle = i * 6 * Math.PI / 180;
+    const isHour = i % 5 === 0;
+    const r1 = isHour ? 80 : 88;
+    const x1 = 100 + r1 * Math.sin(angle), y1 = 100 - r1 * Math.cos(angle);
+    const x2 = 100 + 94 * Math.sin(angle), y2 = 100 - 94 * Math.cos(angle);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('class', isHour ? 'cw-tick-hour' : 'cw-tick-min');
+    (isHour ? hmG : mmG).appendChild(line);
+  }
+}
+
+function _tickMainAnalog() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(), ms = now.getMilliseconds();
+  const rot = (id, deg) => { const el = document.getElementById(id); if (el) el.setAttribute('transform', `rotate(${deg} 100 100)`); };
+  rot('main-cw-hour-hand',   ((h % 12) + m / 60) * 30);
+  rot('main-cw-minute-hand', (m + s / 60) * 6);
+  rot('main-cw-second-hand', (s + ms / 1000) * 6);
+}
+
+let _mainAnalogInterval = null;
+
+function applyClockType() {
+  const type = ntSettings.clockType || 'digital';
+  const clockEl  = document.getElementById('clock-time');
+  const analogEl = document.getElementById('clock-analog');
+  const fontRow  = document.getElementById('clock-font-sel');
+  const sizeRow  = document.getElementById('main-clock-size-row');
+  const sel      = document.getElementById('clock-type-sel');
+  if (sel) sel.value = type;
+  if (clockEl)  clockEl.style.display  = type === 'analog' ? 'none' : '';
+  if (analogEl) analogEl.style.display = type === 'analog' ? '' : 'none';
+  if (sizeRow)  sizeRow.style.display  = type === 'analog' ? '' : 'none';
+  // Apply saved size
+  if (type === 'analog' && analogEl) {
+    const px = ntSettings.mainClockSizePx || 200;
+    analogEl.style.width = px + 'px'; analogEl.style.height = px + 'px';
+    const label = document.getElementById('main-clock-size-label');
+    const slider = document.getElementById('main-clock-size-slider');
+    if (label) label.textContent = px + 'px';
+    if (slider) slider.value = px;
+    _buildMainAnalogMarkers();
+    _tickMainAnalog();
+    if (!_mainAnalogInterval) _mainAnalogInterval = setInterval(_tickMainAnalog, 250);
+  } else {
+    if (_mainAnalogInterval) { clearInterval(_mainAnalogInterval); _mainAnalogInterval = null; }
+  }
+}
 function updateClock() {
   const now = new Date();
   const use12 = (ntSettings.clockFormat === '12');
@@ -176,7 +194,9 @@ function applyClockVisibility() {
   const clockEl = document.getElementById('clock-time');
   const dateEl  = document.getElementById('clock-date');
   const block   = document.getElementById('clock-block');
-  if (clockEl) clockEl.style.display = ntSettings.showClock === false ? 'none' : '';
+  const isAnalog = ntSettings.clockType === 'analog';
+  // Digital clock text: hidden if showClock is off OR analog mode is active
+  if (clockEl) clockEl.style.display = (ntSettings.showClock === false || isAnalog) ? 'none' : '';  
   if (dateEl)  dateEl.style.display  = ntSettings.showDate  === false ? 'none' : '';
   if (block)   block.style.display   = (ntSettings.showClock === false && ntSettings.showDate === false) ? 'none' : '';
   const tc = document.getElementById('toggle-clock');
@@ -193,7 +213,6 @@ function applyClockTop() {
   if (slider) slider.value = val;
   if (label)  label.textContent = val + 'px';
 }
-
 function triggerClockAnimation() {
   const block = document.getElementById('clock-block');
   if (!block) return;
@@ -511,8 +530,16 @@ function applySearchEngine() {
   const customInput = document.getElementById('search-custom-url');
   if (customInput && ntSettings.searchCustom) customInput.value = ntSettings.searchCustom;
   if (searchInput) {
-    const labels = { google: 'Google', bing: 'Bing', custom: 'Custom' };
-    searchInput.placeholder = 'Search with ' + (labels[engine] || 'Google') + ' or type a URL…';
+     let label = 'Google';
+    if (engine === 'bing') label = 'Bing';
+    else if (engine === 'custom') {
+      try {
+        const u = new URL(ntSettings.searchCustom || '');
+        label = u.hostname.replace(/^www\./, '');
+      } catch { label = 'Custom'; }
+      if (!label) label = 'Custom';
+    }
+    searchInput.placeholder = 'Search with ' + label + ' or type a URL…';
   }
 }
 
@@ -650,6 +677,7 @@ document.querySelectorAll('.wallpaper-thumb').forEach(t =>
     saveSettings();
     // Cache the selected wallpaper blob so next paint is instant
     if (t.dataset.wp && t.dataset.wp !== 'none') {
+      
       fetch(t.dataset.wp).then(r => r.blob()).then(blob => {
         const reader = new FileReader();
         reader.onload = () => csSet(WP_CURRENT_KEY, { url: t.dataset.wp, dataUrl: reader.result });
@@ -769,6 +797,30 @@ if (toggleRandomWp) {
     clockAnimSel.value = ntSettings.clockAnimation || 'fade-up';
     clockAnimSel.addEventListener('change', e => { ntSettings.clockAnimation = e.target.value; saveSettings(); });
   }
+  // ════════════════════════════════════════════ MAIN CLOCK TYPE
+(function() {
+  const typeSel = document.getElementById('clock-type-sel');
+  if (typeSel) {
+    typeSel.value = ntSettings.clockType || 'digital';
+    typeSel.addEventListener('change', e => {
+      ntSettings.clockType = e.target.value; saveSettings(); applyClockType();
+    });
+  }
+  const sizeSlider = document.getElementById('main-clock-size-slider');
+  const sizeLabel  = document.getElementById('main-clock-size-label');
+  if (sizeSlider) {
+    sizeSlider.value = ntSettings.mainClockSizePx || 200;
+    sizeSlider.addEventListener('input', e => {
+      ntSettings.mainClockSizePx = parseInt(e.target.value);
+      if (sizeLabel) sizeLabel.textContent = e.target.value + 'px';
+      const analogEl = document.getElementById('clock-analog');
+      if (analogEl) { analogEl.style.width = e.target.value + 'px'; analogEl.style.height = e.target.value + 'px'; }
+      saveSettings();
+    });
+  }
+  applyClockType();
+})();
+
 })();
 
 
@@ -1323,6 +1375,8 @@ function applyWidgetDockVisibility() {
   if (!dock) return;
   const show = ntSettings.showWidgetDock !== false;
   dock.style.display = show ? '' : 'none';
+  const tog = document.getElementById('toggle-widget-dock');
+  if (tog) tog.checked = show;
 }
 
 function renderWidgetDock() {
@@ -1451,7 +1505,7 @@ document.querySelectorAll('.widget-close').forEach(btn => {
 });
 
 // Widget transparent toggle buttons
-const TRANSPARENT_WIDGETS = ['quotes', 'learn', 'merriam'];
+const TRANSPARENT_WIDGETS = ['quotes', 'learn', 'merriam','weather','crypto','calendar','notes','todo'];
 function applyWidgetTransparent(id, on) {
   const w = document.getElementById('widget-' + id);
   if (w) w.classList.toggle('widget-transparent', on);
@@ -1503,6 +1557,94 @@ if (clockFontSel) {
 applyClockFont();
 
 // ════════════════════════════════════════════ WEATHER SVG
+(function interceptWttrFetch() {
+  const _origFetch = window.fetch.bind(window);
+
+  function _wmoToWttrCode(wmo) {
+    const w = parseInt(wmo);
+    if (w === 0) return 113; if (w <= 2) return 116; if (w === 3) return 119;
+    if (w <= 48) return 143; if (w <= 55) return 266; if (w <= 57) return 281;
+    if (w <= 63) return 296; if (w === 65) return 308; if (w <= 67) return 311;
+    if (w <= 73) return 323; if (w === 75) return 338; if (w === 77) return 350;
+    if (w <= 82) return 353; if (w <= 86) return 368;
+    if (w === 95) return 200; return 386;
+  }
+  const WMO_DESC = {
+    0:'Clear',1:'Mainly Clear',2:'Partly Cloudy',3:'Overcast',
+    45:'Fog',48:'Icy Fog',51:'Light Drizzle',53:'Drizzle',55:'Heavy Drizzle',
+    56:'Freezing Drizzle',57:'Heavy Freezing Drizzle',
+    61:'Light Rain',63:'Moderate Rain',65:'Heavy Rain',
+    66:'Light Freezing Rain',67:'Heavy Freezing Rain',
+    71:'Light Snow',73:'Moderate Snow',75:'Heavy Snow',77:'Snow Grains',
+    80:'Light Showers',81:'Moderate Showers',82:'Heavy Showers',
+    85:'Snow Showers',86:'Heavy Snow Showers',
+    95:'Thunderstorm',96:'Thunderstorm+Hail',99:'Heavy Thunderstorm'
+  };
+
+  window.fetch = async function(input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (url.includes('wttr.in')) {
+      try {
+        const match = url.match(/wttr\.in\/([^?]+)/);
+        const rawCity = match ? decodeURIComponent(match[1]) : '';
+        if (!rawCity) throw new Error('no city');
+        // Take just the first part (before any comma) for geocoding
+        const city = rawCity.split(',')[0].trim();
+
+        // Geocode
+        const geoRes  = await _origFetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=en&format=json');
+        const geoData = await geoRes.json();
+        if (!geoData.results || !geoData.results.length) throw new Error('city not found: ' + city);
+        const r = geoData.results[0];
+
+        // Fetch weather
+        const wxRes  = await _origFetch('https://api.open-meteo.com/v1/forecast?latitude=' + r.latitude + '&longitude=' + r.longitude + '&current_weather=true&temperature_unit=celsius&timezone=auto');
+        const wxData = await wxRes.json();
+        const cw = wxData.current_weather;
+        if (!cw) throw new Error('no weather');
+
+        const tempC   = Math.round(cw.temperature);
+        const tempF   = Math.round(tempC * 9/5 + 32);
+        const wttrCode = _wmoToWttrCode(cw.weathercode);
+        const desc    = WMO_DESC[parseInt(cw.weathercode)] || 'Clear';
+
+        // Shape response to match wttr.in j1 format widgets/weather.js expects
+        const j1 = {
+          current_condition: [{
+            weatherCode: String(wttrCode),
+            temp_C: String(tempC),
+            temp_F: String(tempF),
+            weatherDesc: [{ value: desc }],
+            humidity: '60',
+            windspeedKmph: String(Math.round(cw.windspeed || 0))
+          }],
+          nearest_area: [{
+            areaName:  [{ value: r.name }],
+            region:    [{ value: r.admin1 || r.name }],
+            country:   [{ value: r.country || '' }]
+          }],
+          weather: []
+        };
+
+        // Also update our own weather globals so clock-weather works
+        const svgCode = wttrCode;
+        window.lastWeatherData = { code: svgCode, tempC, tempF, desc };
+        if (typeof window.updateClockWeatherInline === 'function') {
+          setTimeout(window.updateClockWeatherInline, 100);
+        }
+
+        return new Response(JSON.stringify(j1), {
+          status: 200, headers: { 'Content-Type': 'application/json' }
+        });
+      } catch(e) {
+        // Return minimal valid j1 so widget doesn't crash
+        const fallback = { current_condition:[{ weatherCode:'116', temp_C:'--', temp_F:'--', weatherDesc:[{value:'Unavailable'}], humidity:'0', windspeedKmph:'0' }], nearest_area:[{ areaName:[{value:''}], region:[{value:''}], country:[{value:''}] }], weather:[] };
+        return new Response(JSON.stringify(fallback), { status: 200, headers: {'Content-Type':'application/json'} });
+      }
+    }
+    return _origFetch(input, init);
+  };
+})();
 function getWeatherSVG(code) {
   const c = parseInt(code);
   const isClear        = c === 113;
@@ -1527,7 +1669,7 @@ let weatherCity = ntSettings.weatherCity || '';
 let lastWeatherData = null;
 
 async function fetchWeather(city) {
-  document.getElementById('weather-desc').textContent = 'Loading…';
+    document.getElementById('weather-desc').textContent = 'Loading…';
   try {
     const res  = await fetch('https://wttr.in/' + encodeURIComponent(city) + '?format=j1');
     if (!res.ok) throw new Error();
@@ -2190,6 +2332,12 @@ window.addEventListener('resize', () => {
 checkWidgetVisibility();
 
 // ════════════════════════════════════════════ STARTUP
+// Save screen resolution + settings mirror to chrome.storage.local so the
+// background service worker can pre-fetch wallpapers at the correct size
+// and know whether random wallpaper is enabled.
+csSet('nt_screen', { w: window.screen.width || 1920, h: window.screen.height || 1080 });
+csSet('nt_settings', { randomWallpaper: ntSettings.randomWallpaper });
+
 updateClock();
 (function scheduleClockUpdate() {
   const now = new Date();

@@ -22,6 +22,20 @@
     <div id="clock-block">
       <div id="greeting-line"></div>
       <div id="clock-time"></div>
+         <div id="clock-analog" style="display:none;">
+            <div class="main-clock-blur-bg"></div>
+            <svg class="main-clock-svg" id="main-clock-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="100" cy="100" r="96" class="cw-ring"/>
+              <g id="main-cw-hour-markers"></g>
+              <g id="main-cw-min-markers"></g>
+              <g id="main-cw-numbers"></g>
+              <line id="main-cw-hour-hand"   x1="100" y1="100" x2="100" y2="44"  class="cw-hand cw-hour-hand"/>
+              <line id="main-cw-minute-hand" x1="100" y1="100" x2="100" y2="28"  class="cw-hand cw-min-hand"/>
+              <line id="main-cw-second-hand" x1="100" y1="110" x2="100" y2="20"  class="cw-hand cw-sec-hand"/>
+              <circle cx="100" cy="100" r="5" class="cw-center"/>
+              <circle cx="100" cy="100" r="2.5" class="cw-center-inner"/>
+            </svg>
+          </div>
       <div id="clock-date"></div>
       <div id="clock-weather-inline">
         <div id="cwi-icon"></div>
@@ -72,7 +86,9 @@
 
 <!-- WIDGETS -->
 <div class="widget" id="widget-weather">
-  <div class="widget-header"><span>🌤</span><span class="widget-title">Weather</span><button class="widget-close" data-close="weather">✕</button></div>
+  <div class="widget-header"><span>🌤</span><span class="widget-title">Weather</span>
+    <button class="widget-transparent-btn" data-target="widget-weather" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="weather">✕</button></div>
   <div class="weather-body" id="weather-body">
     <div class="weather-icon" id="weather-icon">🌡</div>
     <div class="weather-location" id="weather-location">Enter a city below</div>
@@ -131,7 +147,9 @@
 </div>
 
 <div class="widget" id="widget-notes">
-  <div class="widget-header"><span>📝</span><span class="widget-title">Notes</span><button class="widget-close" data-close="notes">✕</button></div>
+  <div class="widget-header"><span>📝</span><span class="widget-title">Notes</span>
+    <button class="widget-transparent-btn" data-target="widget-notes" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="notes">✕</button></div>
   <textarea class="notes-area" id="notes-area" placeholder="Jot something down…" spellcheck="false"></textarea>
   <div class="notes-footer">
     <span id="notes-char-count">0 chars</span>
@@ -215,6 +233,7 @@
   <div class="widget-header">
     <span>✅</span><span class="widget-title">To-Do</span>
     <span id="todo-counter" class="todo-header-counter"></span>
+    <button class="widget-transparent-btn" data-target="widget-todo" title="Toggle transparent style">•</button>
     <button class="widget-close" data-close="todo">✕</button>
   </div>
   <div id="todo-list" class="todo-list"></div>
@@ -229,7 +248,9 @@
 
 <!-- MINI CALENDAR WIDGET -->
 <div class="widget" id="widget-calendar">
-  <div class="widget-header"><span>📅</span><span class="widget-title">Calendar</span><button class="widget-close" data-close="calendar">✕</button></div>
+  <div class="widget-header"><span>📅</span><span class="widget-title">Calendar</span>
+    <button class="widget-transparent-btn" data-target="widget-calendar" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="calendar">✕</button></div>
   <div class="cal-nav">
     <button id="cal-prev" class="cal-nav-btn">‹</button>
     <span id="cal-header-title" class="cal-month-title"></span>
@@ -243,7 +264,9 @@
 
 <!-- CRYPTO WIDGET -->
 <div class="widget" id="widget-crypto">
-  <div class="widget-header"><span>₿</span><span class="widget-title">Crypto</span><button class="widget-close" data-close="crypto">✕</button></div>
+  <div class="widget-header"><span>₿</span><span class="widget-title">Crypto</span>
+    <button class="widget-transparent-btn" data-target="widget-crypto" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="crypto">✕</button></div>
   <div id="crypto-list" class="crypto-list"></div>
   <div class="crypto-search-row">
     <div class="crypto-search-wrap">
@@ -390,6 +413,9 @@
     <div class="setting-group">
       <div class="setting-group-label">Clock</div>
       <div class="setting-row">
+         <div class="setting-row"><div class="setting-row-label">Clock Type</div><select id="clock-type-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="digital">Digital</option><option value="analog">Analog</option></select></div>
+      <div class="setting-row" id="main-clock-size-row" style="display:none;flex-direction:column;align-items:flex-start;gap:6px;"><div class="setting-row-label">Analog Size</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="main-clock-size-slider" min="120" max="400" step="10" value="200"><span class="range-label" id="main-clock-size-label">200px</span></div></div>
+      <div class="setting-row"><div class="setting-row-label">Clock Font</div><select id="clock-font-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="mono">Monospace (default)</option><option value="sans">Sans-serif</option><option value="serif">Serif</option><option value="courier">Courier</option><option value="system">System UI thin</option></select></div>
         <div class="setting-row-label">Clock Font</div>
         <select id="clock-font-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
           <option value="mono">Monospace (default)</option>
