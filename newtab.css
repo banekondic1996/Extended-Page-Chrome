@@ -4,7 +4,7 @@
 :root {
   --accent: #3b9eff;
   --accent2: #2dd4a0;
-  --sidebar-w: 0px;
+  --sidebar-w: 48px;
   --sidebar-expanded: 300px;
   --bg: #0c0c10;
   --glass: rgba(255,255,255,0.04);
@@ -566,6 +566,33 @@ a.tab-item, a.tab-item:visited { color: var(--text); text-decoration: none; }
 .widget.widget-transparent .quotes-body,
 .widget.widget-transparent .merriam-body,
 .widget.widget-transparent .word-body { opacity: 1 !important; }
+
+/* ── Notes transparent: hide footer + add button; show only title + textarea ── */
+.widget.widget-transparent .notes-footer,
+.widget.widget-transparent .notes-header-add { opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.widget.widget-transparent:hover .notes-footer,
+.widget.widget-transparent:hover .notes-header-add { opacity: 1; pointer-events: auto; }
+.widget.widget-transparent .notes-area { opacity: 1 !important; background: transparent !important; }
+/* ── Weather transparent: hide city input, show icon/temp/desc ── */
+.widget.widget-transparent .weather-input-wrap { opacity: 0; transition: opacity 0.2s; pointer-events: none; max-height: 0; overflow: hidden; }
+.widget.widget-transparent:hover .weather-input-wrap { opacity: 1; pointer-events: auto; max-height: 80px; }
+.widget.widget-transparent .weather-body { opacity: 1 !important; }
+
+/* ── Calendar transparent: hide nav controls and footer, show grid only ── */
+.widget.widget-transparent .cal-nav,
+.widget.widget-transparent .cal-footer { opacity: 0; transition: opacity 0.2s; pointer-events: none; max-height: 0; overflow: hidden; }
+.widget.widget-transparent:hover .cal-nav,
+.widget.widget-transparent:hover .cal-footer { opacity: 1; pointer-events: auto; max-height: 80px; }
+.widget.widget-transparent .cal-grid { opacity: 1 !important; }
+
+/* ── Crypto transparent: show prices only, hide search/add controls ── */
+.widget.widget-transparent .crypto-body { opacity: 1 !important; }
+.widget.widget-transparent .crypto-add-row,
+.widget.widget-transparent .crypto-search-row,
+.widget.widget-transparent .crypto-footer { opacity: 0; transition: opacity 0.2s; pointer-events: none; max-height: 0; overflow: hidden; }
+.widget.widget-transparent:hover .crypto-add-row,
+.widget.widget-transparent:hover .crypto-search-row,
+.widget.widget-transparent:hover .crypto-footer { opacity: 1; pointer-events: auto; max-height: 200px; }
 
 /* Transparent toggle button — dot, always invisible until widget hover */
 .widget-transparent-btn {
@@ -1155,4 +1182,130 @@ select option { background: #1a1a24; color: #f0eee8; }
 .wp-load-status {
   font-size: 0.68rem; color: var(--text2); text-align: center;
   padding: 2px 0 4px; min-height: 14px;
+}
+
+/* ═══ CLOCK WIDGET ══════════════════════════════════════════════════════════ */
+#widget-clockwidget { left: 24px; bottom: 60px; width: auto; min-width: 210px; display: none; }
+
+.cw-body {
+  display: flex; flex-direction: column; align-items: center; padding: 12px 12px 8px;
+}
+
+/* Analog wrapper — always has blur background circle */
+.cw-analog {
+  flex-shrink: 0;
+  position: relative;
+  border-radius: 50%;
+}
+/* The blur background circle behind the SVG */
+.cw-blur-bg {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--ui-tint-bg), var(--glass));
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid var(--glass-border);
+  z-index: 0;
+}
+.cw-svg { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
+
+.cw-ring      { fill: none; stroke: var(--glass-border); stroke-width: 1.5; }
+.cw-tick-hour { stroke: var(--text); stroke-width: 2.2; stroke-linecap: round; opacity: 0.75; }
+.cw-tick-min  { stroke: var(--text); stroke-width: 1;   stroke-linecap: round; opacity: 0.28; }
+.cw-num       { font-size: 14px; fill: var(--text); opacity: 0.8; }
+
+.cw-hand        { stroke-linecap: round; }
+.cw-hour-hand   { stroke: var(--text); stroke-width: 6;   opacity: 0.92; }
+.cw-min-hand    { stroke: var(--text); stroke-width: 3.5; opacity: 0.82; }
+.cw-sec-hand    { stroke: var(--accent); stroke-width: 1.8; opacity: 1; }
+.cw-center      { fill: var(--text); opacity: 0.9; }
+.cw-center-inner { fill: var(--accent); }
+
+/* Digital */
+.cw-digital   { display: flex; flex-direction: column; align-items: center; padding: 10px 0 4px; }
+.cw-digi-time {
+  font-family: var(--font-mono); font-size: 2.8rem; font-weight: 300;
+  color: var(--text); letter-spacing: 0.04em; line-height: 1;
+}
+.cw-digi-ampm {
+  font-family: var(--font); font-size: 0.75rem; color: var(--accent);
+  font-weight: 500; letter-spacing: 0.08em; margin-top: 4px; min-height: 1em;
+}
+
+/* Date — always uses --text color, always fully visible including transparent mode */
+.cw-date {
+  font-family: var(--font); font-size: 0.75rem; color: var(--text);
+  letter-spacing: 0.02em; margin-top: 8px; margin-bottom: 2px;
+  text-align: center; line-height: 1.4; opacity: 0.85;
+}
+
+/* Settings gear button */
+.cw-settings-btn {
+  background: none; border: none; color: var(--text2); font-size: 13px;
+  cursor: pointer; padding: 2px 4px; border-radius: 4px; line-height: 1;
+  transition: color 0.12s; flex-shrink: 0;
+}
+.cw-settings-btn:hover { color: var(--accent); }
+
+/* Settings panel */
+.cw-settings-panel {
+  border-top: 1px solid var(--glass-border);
+  padding: 10px 12px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cw-setting-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.cw-setting-col {
+  flex-direction: column; align-items: flex-start; gap: 6px;
+}
+.cw-setting-label {
+  font-size: 0.75rem; color: var(--text); font-family: var(--font);
+}
+.cw-slider-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+}
+.cw-size-label {
+  font-size: 0.7rem; color: var(--text2); font-family: var(--font-mono);
+  min-width: 36px; text-align: right; flex-shrink: 0;
+}
+.cw-btn-group { display: flex; gap: 3px; }
+.cw-mode-btn {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 5px; color: var(--text); font-family: var(--font);
+  font-size: 0.72rem; padding: 4px 10px; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.cw-mode-btn:hover { background: var(--glass-hover); }
+.cw-mode-btn.active { background: rgba(59,158,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+/* Transparent mode — date stays visible, settings and gear button fade */
+.widget.widget-transparent .cw-settings-panel,
+.widget.widget-transparent .cw-settings-btn { opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.widget.widget-transparent:hover .cw-settings-panel,
+.widget.widget-transparent:hover .cw-settings-btn { opacity: 1; pointer-events: auto; }
+/* Date and clock face always visible in transparent mode */
+.widget.widget-transparent .cw-body  { opacity: 1 !important; }
+.widget.widget-transparent .cw-date  { opacity: 0.85 !important; }
+/* Blur bg circle stays even in transparent mode */
+.widget.widget-transparent .cw-blur-bg { opacity: 1 !important; }
+
+/* ═══ MAIN CLOCK ANALOG MODE ════════════════════════════════════════════════ */
+#clock-analog {
+  position: relative; margin: 0 auto;
+  width: 200px; height: 200px;
+}
+.main-clock-blur-bg {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--ui-tint-bg), var(--glass));
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid var(--glass-border);
+  z-index: 0;
+}
+.main-clock-svg {
+  width: 100%; height: 100%; display: block;
+  position: relative; z-index: 1;
+}
+::-webkit-resizer{
+  background: transparent;
 }

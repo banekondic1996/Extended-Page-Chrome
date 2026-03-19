@@ -6,108 +6,67 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="newtab.css">
-<style>
-html, body { overflow: hidden; height: 100%; margin: 0; padding: 0; }
-#pages {
-  position: fixed; inset: 0;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  scrollbar-width: none; -ms-overflow-style: none;
-}
-#pages::-webkit-scrollbar { display: none; }
-.page { scroll-snap-align: start; scroll-snap-stop: always; height: 100vh; width: 100%; position: relative; z-index: 1; }
-#app { position: absolute; inset: 0; }
-#page-workspace { display: flex; align-items: center; justify-content: center; }
-/* Widgets are absolutely positioned within their page container.
-   This replaces the original position:fixed from newtab.css so they
-   stay on their page and don't bleed across the scroll boundary. */
-.page .widget { position: absolute !important; }
-.page .widget.widget-ignorelist { display: none; }
-#wallpaper-bg, #wallpaper-overlay, #grain-overlay { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-#settings-overlay, #settings-panel, #sidebar, #hint-settings, #widget-dock, #ql-modal-overlay { position: fixed; z-index: 1000; }
-#scroll-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; opacity: 0.35; pointer-events: auto; cursor: pointer; z-index: 10; transition: opacity 0.4s; }
-#pages.page2-active #scroll-hint { opacity: 0; pointer-events: none; }
-#scroll-hint:hover { opacity: 0.65 !important; }
-#scroll-up-hint { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); opacity: 0.3; pointer-events: auto; cursor: pointer; z-index: 10; }
-#scroll-up-hint:hover { opacity: 0.65; }
-#scroll-up-hint svg { transform: rotate(180deg); }
-#workspace-label { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text2, rgba(255,255,255,0.35)); pointer-events: none; opacity: 0; transition: opacity 0.5s 0.3s; z-index: 10; white-space: nowrap; }
-#pages.page2-active #workspace-label { opacity: 0.5; }
-
-/* ── Todo widget layout ── */
-.todo-footer { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--glass-border); }
-.todo-input-row { display: flex; align-items: center; gap: 6px; }
-.todo-input { flex: 1; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text); font-family: var(--font); font-size: 0.78rem; padding: 5px 8px; outline: none; min-width: 0; }
-.todo-input:focus { border-color: var(--accent); }
-.todo-add-btn { background: none; border: none; color: var(--accent); font-family: var(--font); font-size: 1.1rem; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1; flex-shrink: 0; }
-.todo-add-btn:hover { opacity: 0.7; }
-.todo-footer-btns { display: flex; justify-content: flex-end; }
-.todo-clear-btn { background: none; border: none; color: var(--text2); font-family: var(--font); font-size: 0.72rem; cursor: pointer; padding: 0; }
-.todo-clear-btn:hover { color: #e53e3e; }
-.todo-list { max-height: 220px; overflow-y: auto; scrollbar-width: thin; padding: 6px 0; }
-.todo-item { display: flex; align-items: center; gap: 8px; padding: 5px 12px; transition: background 0.12s; }
-.todo-item:hover { background: var(--glass); }
-.todo-check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--text2); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--accent); flex-shrink: 0; transition: border-color 0.15s, background 0.15s; padding: 0; }
-.todo-check.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
-.todo-text { flex: 1; font-size: 0.8rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.todo-done .todo-text { text-decoration: line-through; color: var(--text2); }
-.todo-delete { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 0.85rem; padding: 0 2px; opacity: 0; transition: opacity 0.15s, color 0.15s; flex-shrink: 0; }
-.todo-item:hover .todo-delete { opacity: 1; }
-.todo-delete:hover { color: #e53e3e; }
-.todo-empty { font-size: 0.75rem; color: var(--text2); padding: 12px; text-align: center; }
-.todo-header-counter { font-size: 0.65rem; color: var(--text2); margin-left: 4px; }
-/* ── Notes resize ── */
-.notes-area { resize: both; min-width: 160px; min-height: 80px; }
-</style>
 </head>
 <body>
+
 <div id="wallpaper-bg"></div>
 <div id="wallpaper-overlay"></div>
 <div id="grain-overlay"></div>
-<div id="hint-settings"><button class="settings-pill" id="settingsBtn">⚙ Settings</button></div>
 
-<div id="pages">
-  <div class="page" id="page-main">
-    <div id="app">
-      <div id="main">
-        <div id="clock-block">
-          <div id="greeting-line"></div>
-          <div id="clock-time"></div>
-          <div id="clock-date"></div>
-          <div id="clock-weather-inline">
-            <div id="cwi-icon"></div>
-            <span id="cwi-temp">--°</span>
-            <span id="cwi-desc"></span>
+<div id="hint-settings">
+  <button class="settings-pill" id="settingsBtn">⚙ Settings</button>
+</div>
+
+<div id="app">
+  <div id="main">
+    <div id="clock-block">
+      <div id="greeting-line"></div>
+      <div id="clock-time"></div>
+         <div id="clock-analog" style="display:none;">
+            <div class="main-clock-blur-bg"></div>
+            <svg class="main-clock-svg" id="main-clock-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="100" cy="100" r="96" class="cw-ring"/>
+              <g id="main-cw-hour-markers"></g>
+              <g id="main-cw-min-markers"></g>
+              <g id="main-cw-numbers"></g>
+              <line id="main-cw-hour-hand"   x1="100" y1="100" x2="100" y2="44"  class="cw-hand cw-hour-hand"/>
+              <line id="main-cw-minute-hand" x1="100" y1="100" x2="100" y2="28"  class="cw-hand cw-min-hand"/>
+              <line id="main-cw-second-hand" x1="100" y1="110" x2="100" y2="20"  class="cw-hand cw-sec-hand"/>
+              <circle cx="100" cy="100" r="5" class="cw-center"/>
+              <circle cx="100" cy="100" r="2.5" class="cw-center-inner"/>
+            </svg>
           </div>
-          <div id="extra-clocks"></div>
-        </div>
-        <div id="search-block">
-          <div id="search-wrap">
-            <input type="text" id="search-input" placeholder="Search the web or type a URL…" autocomplete="off" spellcheck="false">
-            <button id="search-go">→</button>
-          </div>
-        </div>
-        <div id="topsites-block">
-          <div id="topsites-label">Most Visited</div>
-          <div id="topsites-grid"><div style="color:var(--text2);font-size:0.8rem;padding:12px;">Loading top sites…</div></div>
-        </div>
+      <div id="clock-date"></div>
+      <div id="clock-weather-inline">
+        <div id="cwi-icon"></div>
+        <span id="cwi-temp">--°</span>
+        <span id="cwi-desc"></span>
+      </div>
+      <div id="extra-clocks"></div>
+    </div>
+
+    <div id="search-block">
+      <div id="search-wrap">
+        <input type="text" id="search-input" placeholder="Search the web or type a URL…" autocomplete="off" spellcheck="false">
+        <button id="search-go">→</button>
       </div>
     </div>
-    <div id="scroll-hint">
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 8l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-  </div>
 
-  <div class="page" id="page-workspace">
-    <div id="workspace-label">Widget Space · Ctrl+click any widget header to move it here</div>
-    <div id="scroll-up-hint">
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 8l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div id="topsites-block">
+      <div id="topsites-label">Most Visited</div>
+      <div id="topsites-grid">
+        <div style="color:var(--text2);font-size:0.8rem;padding:12px;">Loading top sites…</div>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- SIDEBAR -->
 <div id="sidebar">
-  <div id="sidebar-header"><div class="sidebar-logo-text">Extended Page</div></div>
+  <div id="sidebar-header">
+    <!-- <div class="sidebar-logo"><img src="/icons/icon128.png" style="width:26px;height:26px;border-radius:6px;display:block;" onerror="this.style.display='none'"></div> -->
+    <div class="sidebar-logo-text">Extended Page</div>
+  </div>
   <div class="sidebar-section-label" id="sidebar-section-label">Active Tabs</div>
   <div id="sidebar-tabs-list"><div class="sidebar-empty">Loading…</div></div>
   <div id="sidebar-bottom">
@@ -125,8 +84,199 @@ html, body { overflow: hidden; height: 100%; margin: 0; padding: 0; }
   </div>
 </div>
 
-<div id="widget-dock"></div>
+<!-- WIDGETS -->
+<div class="widget" id="widget-weather">
+  <div class="widget-header"><span>🌤</span><span class="widget-title">Weather</span>
+    <button class="widget-transparent-btn" data-target="widget-weather" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="weather">✕</button></div>
+  <div class="weather-body" id="weather-body">
+    <div class="weather-icon" id="weather-icon">🌡</div>
+    <div class="weather-location" id="weather-location">Enter a city below</div>
+    <div class="weather-temp" id="weather-temp">--°</div>
+    <div class="weather-desc" id="weather-desc">No data</div>
+  </div>
+  <div class="weather-input-wrap">
+    <input class="weather-city-input" id="weather-city" type="text" placeholder="City name…" autocomplete="off">
+  </div>
+</div>
 
+<div class="widget" id="widget-timer">
+  <div class="widget-header"><span>⏱</span><span class="widget-title">Timer</span><button class="widget-close" data-close="timer">✕</button></div>
+  <div class="timer-mode-tabs">
+    <button class="timer-mode-tab active" id="tab-timer">Timer</button>
+    <button class="timer-mode-tab" id="tab-stopwatch">Stopwatch</button>
+  </div>
+  <div id="timer-mode-panel">
+    <div class="timer-ring-wrap">
+      <svg width="80" height="80" viewBox="0 0 80 80"><circle class="timer-ring-bg" cx="40" cy="40" r="36"/><circle class="timer-ring-fg" id="timer-ring" cx="40" cy="40" r="36" stroke-dasharray="226.2" stroke-dashoffset="0"/></svg>
+      <div class="timer-ring-text" id="timer-display">00:00</div>
+    </div>
+    <div class="timer-status-label" id="timer-status">Ready</div>
+    <div class="timer-input-row"><input type="text" id="timer-input" placeholder="mm:ss or minutes"></div>
+    <div class="timer-presets">
+      <button class="timer-preset" data-mins="1">1m</button>
+      <button class="timer-preset" data-mins="5">5m</button>
+      <button class="timer-preset" data-mins="10">10m</button>
+      <button class="timer-preset" data-mins="25">25m</button>
+      <button class="timer-preset" data-mins="60">1h</button>
+    </div>
+    <div class="timer-controls">
+      <button class="timer-btn primary" id="timer-start-btn">Start</button>
+      <button class="timer-btn" id="timer-reset-btn">Reset</button>
+    </div>
+  </div>
+  <div id="stopwatch-mode-panel" style="display:none;">
+    <div class="sw-time" id="stopwatch-display">00:00.0</div>
+    <div class="timer-status-label" id="sw-status">Ready</div>
+    <div class="timer-controls">
+      <button class="timer-btn primary" id="sw-start-btn">Start</button>
+      <button class="timer-btn" id="sw-lap-btn">Lap</button>
+      <button class="timer-btn" id="sw-reset-btn">Reset</button>
+    </div>
+    <div id="sw-laps"></div>
+  </div>
+</div>
+
+<div class="widget" id="widget-ignorelist" style="display:none;right:24px;top:50%;transform:translateY(-50%);width:300px;max-height:420px;">
+  <div class="widget-header"><span>🚫</span><span class="widget-title">Ignored Sites</span><button class="widget-close" data-close="ignorelist">✕</button></div>
+  <div style="padding:10px 14px 4px;font-size:0.72rem;color:var(--text2);">Sites hidden from Most Visited. Click × to restore.</div>
+  <div id="ignorelist-body" style="padding:6px 14px;max-height:280px;overflow-y:auto;scrollbar-width:thin;"></div>
+  <div style="padding:8px 14px 12px;">
+    <button id="ignorelist-clear-btn" style="width:100%;padding:7px;background:rgba(229,62,62,0.12);border:1px solid rgba(229,62,62,0.3);border-radius:8px;color:#e53e3e;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:background 0.12s;">Clear All</button>
+  </div>
+</div>
+
+<div class="widget" id="widget-notes">
+  <div class="widget-header"><span>📝</span><span class="widget-title">Notes</span>
+    <button class="widget-transparent-btn" data-target="widget-notes" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="notes">✕</button></div>
+  <textarea class="notes-area" id="notes-area" placeholder="Jot something down…" spellcheck="false"></textarea>
+  <div class="notes-footer">
+    <span id="notes-char-count">0 chars</span>
+    <span class="notes-saved" id="notes-saved" style="opacity:0">Saved ✓</span>
+  </div>
+</div>
+
+<div class="widget" id="widget-currency">
+  <div class="widget-header"><span>💱</span><span class="widget-title">Currency</span><button class="widget-close" data-close="currency">✕</button></div>
+  <div class="currency-body">
+    <div class="currency-row">
+      <input type="number" id="currency-amount" value="1" min="0" step="any">
+      <select class="currency-sel" id="currency-from"></select>
+    </div>
+    <button class="currency-swap-btn" id="currency-swap">⇅ Swap</button>
+    <div class="currency-row">
+      <input type="number" id="currency-result-input" value="" placeholder="—" readonly style="color:var(--accent)">
+      <select class="currency-sel" id="currency-to"></select>
+    </div>
+    <div class="currency-result" id="currency-result">—</div>
+    <div class="currency-rate" id="currency-rate">Loading rates…</div>
+  </div>
+</div>
+
+<div class="widget" id="widget-quotes">
+  <div class="widget-header"><span>💬</span><span class="widget-title">Quote</span>
+    <button class="widget-transparent-btn" data-target="widget-quotes" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="quotes">✕</button>
+  </div>
+  <div class="quotes-body">
+    <div class="quotes-text" id="quotes-text">Loading…</div>
+    <div class="quotes-author" id="quotes-author"></div>
+  </div>
+  <div class="quotes-footer">
+    <span id="quotes-counter" style="font-size:0.62rem;color:var(--text2);"></span>
+    <button class="quotes-next-btn" id="quotes-next">Next →</button>
+  </div>
+</div>
+
+<div class="widget" id="widget-learn">
+  <div class="widget-header"><span>🔤</span><span class="widget-title">Learn Language</span>
+    <button class="widget-transparent-btn" data-target="widget-learn" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="learn">✕</button>
+  </div>
+  <div class="word-body">
+    <div class="word-pair" id="word-pair">—</div>
+    <div class="word-lang-display" id="word-lang-display">English – French</div>
+  </div>
+  <div class="word-footer">
+    <button class="word-speak-btn" id="word-speak">Speak</button>
+    <button class="quotes-next-btn" id="word-next">Next →</button>
+  </div>
+</div>
+
+<!-- Merriam-Webster Word of Day -->
+<div class="widget" id="widget-merriam">
+  <div class="widget-header">
+    <span>📖</span><span class="widget-title">Word of the Day</span>
+    <button class="widget-transparent-btn" data-target="widget-merriam" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="merriam">✕</button>
+  </div>
+  <div class="merriam-body" id="merriam-body">
+    <div class="merriam-word" id="merriam-word">Loading…</div>
+    <div class="merriam-pos" id="merriam-pos"></div>
+    <div class="merriam-def" id="merriam-def"></div>
+    <div class="merriam-example" id="merriam-example"></div>
+  </div>
+  <div class="merriam-footer">
+    <a class="merriam-link" id="merriam-link" href="https://www.merriam-webster.com/word-of-the-day" target="_blank">merriam-webster.com ↗</a>
+  </div>
+</div>
+
+<!-- QUICK LINKS WIDGET -->
+<div class="widget" id="widget-quicklinks">
+  <div class="widget-header"><span>🔗</span><span class="widget-title">Quick Links</span><button class="widget-close" data-close="quicklinks">✕</button></div>
+  <div id="quicklinks-grid" class="ql-grid"></div>
+</div>
+
+<!-- TODO WIDGET -->
+<div class="widget" id="widget-todo">
+  <div class="widget-header">
+    <span>✅</span><span class="widget-title">To-Do</span>
+    <span id="todo-counter" class="todo-header-counter"></span>
+    <button class="widget-transparent-btn" data-target="widget-todo" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="todo">✕</button>
+  </div>
+  <div id="todo-list" class="todo-list"></div>
+  <div class="todo-input-row">
+    <input type="text" id="todo-input" class="todo-input" placeholder="New task…" autocomplete="off" spellcheck="false">
+    <button id="todo-add-btn" class="todo-add-btn">+</button>
+  </div>
+  <div class="todo-footer">
+    <button id="todo-clear-done" class="todo-clear-btn">Clear done</button>
+  </div>
+</div>
+
+<!-- MINI CALENDAR WIDGET -->
+<div class="widget" id="widget-calendar">
+  <div class="widget-header"><span>📅</span><span class="widget-title">Calendar</span>
+    <button class="widget-transparent-btn" data-target="widget-calendar" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="calendar">✕</button></div>
+  <div class="cal-nav">
+    <button id="cal-prev" class="cal-nav-btn">‹</button>
+    <span id="cal-header-title" class="cal-month-title"></span>
+    <button id="cal-next" class="cal-nav-btn">›</button>
+  </div>
+  <div id="cal-grid" class="cal-grid"></div>
+  <div class="cal-footer">
+    <button id="cal-today-btn" class="cal-today-btn">Today</button>
+  </div>
+</div>
+
+<!-- CRYPTO WIDGET -->
+<div class="widget" id="widget-crypto">
+  <div class="widget-header"><span>₿</span><span class="widget-title">Crypto</span>
+    <button class="widget-transparent-btn" data-target="widget-crypto" title="Toggle transparent style">•</button>
+    <button class="widget-close" data-close="crypto">✕</button></div>
+  <div id="crypto-list" class="crypto-list"></div>
+  <div class="crypto-search-row">
+    <div class="crypto-search-wrap">
+      <input type="text" id="crypto-search-input" class="crypto-search-input" placeholder="Search coin…" autocomplete="off" spellcheck="false">
+      <button id="crypto-add-btn" class="crypto-add-btn">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK LINK MODAL -->
 <div id="ql-modal-overlay" class="ql-modal-overlay" style="display:none;">
   <div class="ql-modal">
     <div class="ql-modal-title">Add Quick Link</div>
@@ -139,6 +289,10 @@ html, body { overflow: hidden; height: 100%; margin: 0; padding: 0; }
   </div>
 </div>
 
+<!-- WIDGET DOCK -->
+<div id="widget-dock"></div>
+
+<!-- SETTINGS -->
 <div id="settings-overlay"></div>
 <div id="settings-panel">
   <div class="settings-header">
@@ -147,111 +301,342 @@ html, body { overflow: hidden; height: 100%; margin: 0; padding: 0; }
     <button class="settings-close" id="settingsClose">✕</button>
   </div>
   <div class="settings-body">
+
     <div class="setting-group">
       <div class="setting-group-label">Wallpaper</div>
-      <div class="setting-row"><div><div class="setting-row-label">Random Wallpaper</div><div class="setting-row-sub">New photo on each tab open</div></div><label class="toggle"><input type="checkbox" id="toggle-random-wp"><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div class="setting-row-label">Wallpaper Animation</div><select id="wp-anim-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="fade-expand">Fade + Expand</option><option value="fade">Fade only</option><option value="none">None</option></select></div>
-      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:6px;"><div class="setting-row-label">Background Blur</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="blur-slider" min="0" max="20" step="1" value="0"><span class="range-label" id="blur-label">0px</span></div></div>
-      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:6px;"><div class="setting-row-label">Overlay Opacity</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="overlay-slider" min="0" max="100" step="1" value="72"><span class="range-label" id="overlay-label">72%</span></div></div>
-      <div class="setting-row"><div><div class="setting-row-label">Film Grain</div></div><label class="toggle"><input type="checkbox" id="toggle-grain"><span class="toggle-slider"></span></label></div>
+      <div class="wallpaper-grid" id="wallpaper-grid">
+        <div class="wallpaper-thumb none-thumb active" data-wp="none">✕</div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1463003416389-296a1ad37ca0?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1463003416389-296a1ad37ca0?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400&q=60')"></div>
+        <div class="wallpaper-thumb" data-wp="https://images.unsplash.com/photo-1476611317561-60117649dd94?w=1920&q=90" style="background-image:url('https://images.unsplash.com/photo-1476611317561-60117649dd94?w=400&q=60')"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1454789548928-9efd52dc4031?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1454789548928-9efd52dc4031?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1446329813274-7c9036bd9a1f?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1446329813274-7c9036bd9a1f?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1542293787938-c9e299b880cc?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1542293787938-c9e299b880cc?w=1920&q=90"></div>
+        <div class="wallpaper-thumb wallpaper-hires" style="display:none;background-image:url('https://images.unsplash.com/photo-1561649100-28f1f5f5c2e8?w=400&q=60')" data-wp="https://images.unsplash.com/photo-1561649100-28f1f5f5c2e8?w=1920&q=90"></div>
+      </div>
+      <label class="wp-upload-btn" for="wp-upload">+ Upload wallpaper…<input type="file" id="wp-upload" accept="image/*" style="display:none"></label>
+      <div class="setting-row" style="margin-top:10px;">
+        <div><div class="setting-row-label">High-Res Feed</div><div class="setting-row-sub">Expand library with more photos</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-hires-feed"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="margin-top:4px;">
+        <div><div class="setting-row-label">Randomize on New Tab</div><div class="setting-row-sub">Pick a random wallpaper each time</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-random-wp"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="margin-top:4px;">
+        <div class="setting-row-label">Wallpaper Animation</div>
+        <select id="wp-anim-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="fade-expand">Fade + Expand</option>
+          <option value="fade">Fade only</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+      <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+        <div class="setting-row-label">Wallpaper Blur</div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="blur-slider" min="0" max="20" step="1" value="0">
+          <span class="range-label" id="blur-label">0px</span>
+        </div>
+      </div>
+      <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+        <div class="setting-row-label">Overlay Opacity</div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="overlay-slider" min="40" max="100" step="1" value="72">
+          <span class="range-label" id="overlay-label">72%</span>
+        </div>
+      </div>
+      <div class="setting-row" style="margin-top:4px;">
+        <div><div class="setting-row-label">Grain Overlay</div><div class="setting-row-sub">Film-grain texture on background</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-grain"><span class="toggle-slider"></span></label>
+      </div>
       <div id="grain-controls" style="display:none;">
-        <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;"><div class="setting-row-label">Grain Opacity</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="grain-opacity-slider" min="1" max="100" step="1" value="10"><span class="range-label" id="grain-opacity-label">10%</span></div></div>
-        <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;"><div class="setting-row-label">Texture Size</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="grain-size-slider" min="80" max="400" step="20" value="200"><span class="range-label" id="grain-size-label">200px</span></div></div>
+        <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+          <div class="setting-row-label">Grain Opacity</div>
+          <div class="range-row" style="width:100%;">
+            <input type="range" class="range-slider" id="grain-opacity-slider" min="1" max="100" step="1" value="10">
+            <span class="range-label" id="grain-opacity-label">10%</span>
+          </div>
+        </div>
+        <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
+          <div class="setting-row-label">Texture Size</div>
+          <div class="range-row" style="width:100%;">
+            <input type="range" class="range-slider" id="grain-size-slider" min="80" max="400" step="20" value="200">
+            <span class="range-label" id="grain-size-label">200px</span>
+          </div>
+        </div>
       </div>
-      <!-- Preset wallpaper thumbnails — populated by newtab.js applyWallpaper() -->
-      <div style="padding:8px 0 4px;display:flex;flex-wrap:wrap;gap:6px;" id="wallpaper-thumbs">
-        <div class="wallpaper-thumb" data-wp="none" title="None" style="width:48px;height:32px;border-radius:5px;background:var(--glass);border:1.5px solid var(--glass-border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text2);">None</div>
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=85" src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Mountains">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1920&q=85" src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Forest light">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=85" src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="City night">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1920&q=85" src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Road">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=85" src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Galaxy">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=1920&q=85" src="https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Desert">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1920&q=85" src="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Green hills">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1920&q=85" src="https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Snowy peaks">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=1920&q=85" src="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Ocean sunset">
-        <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1518655048521-f130df041f66?w=1920&q=85" src="https://images.unsplash.com/photo-1518655048521-f130df041f66?w=120&q=60" style="width:48px;height:32px;object-fit:cover;border-radius:5px;cursor:pointer;border:1.5px solid transparent;" title="Abstract dark">
-      </div>
-      <div class="setting-row" style="margin-top:4px;"><label class="settings-io-btn" style="cursor:pointer;">⬆ Upload Image<input type="file" id="wp-upload" accept="image/*" style="display:none"></label></div>
     </div>
     <div class="setting-group">
       <div class="setting-group-label">Appearance</div>
-      <div class="setting-row"><div><div class="setting-row-label">Dark Mode</div><div class="setting-row-sub">Toggle light / dark theme</div></div><label class="toggle"><input type="checkbox" id="toggle-theme" checked><span class="toggle-slider"></span></label></div>
-      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;"><div class="setting-row-label">UI Font Size</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="fontsize-slider" min="80" max="120" step="5" value="100"><span class="range-label" id="fontsize-label">100%</span></div></div>
-      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;"><div class="setting-row-label">Accent Color</div><div class="accent-row" id="accent-swatches"><div class="accent-swatch active" style="background:#3b9eff" data-color="#3b9eff"></div><div class="accent-swatch" style="background:#2dd4a0" data-color="#2dd4a0"></div><div class="accent-swatch" style="background:#a78bfa" data-color="#a78bfa"></div><div class="accent-swatch" style="background:#f97316" data-color="#f97316"></div><div class="accent-swatch" style="background:#f43f5e" data-color="#f43f5e"></div><div class="accent-swatch" style="background:#eab308" data-color="#eab308"></div><div class="accent-swatch" style="background:#22d3ee" data-color="#22d3ee"></div></div></div>
-      <div class="setting-row"><div class="setting-row-label">Search Engine</div><select id="search-engine-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="google">Google</option><option value="bing">Bing</option><option value="custom">Custom</option></select></div>
-      <div class="setting-row" id="search-custom-row" style="display:none;"><div><div class="setting-row-label">Custom URL</div><div class="setting-row-sub">Use <code style="font-size:0.68rem;background:var(--glass);padding:1px 4px;border-radius:3px;">%s</code> for query</div></div><input id="search-custom-url" type="text" placeholder="https://…?q=%s" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.72rem;outline:none;width:140px;"></div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Dark Mode</div><div class="setting-row-sub">Toggle light / dark theme</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-theme" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div class="setting-row-label">UI Font Size</div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="fontsize-slider" min="80" max="120" step="5" value="100">
+          <span class="range-label" id="fontsize-label">100%</span>
+        </div>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div class="setting-row-label">Accent Color</div>
+        <div class="accent-row" id="accent-swatches">
+          <div class="accent-swatch active" style="background:#3b9eff" data-color="#3b9eff"></div>
+          <div class="accent-swatch" style="background:#2dd4a0" data-color="#2dd4a0"></div>
+          <div class="accent-swatch" style="background:#a78bfa" data-color="#a78bfa"></div>
+          <div class="accent-swatch" style="background:#f97316" data-color="#f97316"></div>
+          <div class="accent-swatch" style="background:#f43f5e" data-color="#f43f5e"></div>
+          <div class="accent-swatch" style="background:#eab308" data-color="#eab308"></div>
+          <div class="accent-swatch" style="background:#22d3ee" data-color="#22d3ee"></div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">Search Engine</div>
+        <select id="search-engine-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="google">Google</option><option value="bing">Bing</option><option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="setting-row" id="search-custom-row" style="display:none;">
+        <div><div class="setting-row-label">Custom URL</div><div class="setting-row-sub">Use <code style="font-size:0.68rem;background:var(--glass);padding:1px 4px;border-radius:3px;">%s</code> for query</div></div>
+        <input id="search-custom-url" type="text" placeholder="https://…?q=%s" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.72rem;outline:none;width:140px;">
+      </div>
     </div>
+
     <div class="setting-group">
       <div class="setting-group-label">Clock</div>
+      <div class="setting-row">
+         <div class="setting-row"><div class="setting-row-label">Clock Type</div><select id="clock-type-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="digital">Digital</option><option value="analog">Analog</option></select></div>
+      <div class="setting-row" id="main-clock-size-row" style="display:none;flex-direction:column;align-items:flex-start;gap:6px;"><div class="setting-row-label">Analog Size</div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="main-clock-size-slider" min="120" max="400" step="10" value="200"><span class="range-label" id="main-clock-size-label">200px</span></div></div>
       <div class="setting-row"><div class="setting-row-label">Clock Font</div><select id="clock-font-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="mono">Monospace (default)</option><option value="sans">Sans-serif</option><option value="serif">Serif</option><option value="courier">Courier</option><option value="system">System UI thin</option></select></div>
-      <div class="setting-row"><div class="setting-row-label">Time Format</div><select id="clock-format-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="24">24-hour</option><option value="12">12-hour (AM/PM)</option></select></div>
-      <div class="setting-row"><div><div class="setting-row-label">Show Clock</div></div><label class="toggle"><input type="checkbox" id="toggle-clock" checked><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div class="setting-row-label">Clock Animation</div><select id="clock-anim-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="fade-up">Fade + Rise</option><option value="fade">Fade only</option><option value="none">None</option></select></div>
-      <div class="setting-row"><div><div class="setting-row-label">Show Date</div></div><label class="toggle"><input type="checkbox" id="toggle-date" checked><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div><div class="setting-row-label">Weather Under Clock</div></div><label class="toggle"><input type="checkbox" id="toggle-clock-weather"><span class="toggle-slider"></span></label></div>
-      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;"><div><div class="setting-row-label">Clock Vertical Position</div><div class="setting-row-sub">Move clock up (−) or down (+)</div></div><div class="range-row" style="width:100%;"><input type="range" class="range-slider" id="clock-top-slider" min="-200" max="200" step="10" value="0"><span class="range-label" id="clock-top-label">0px</span></div></div>
-      <div class="setting-row"><div><div class="setting-row-label">Greeting Message</div></div><label class="toggle"><input type="checkbox" id="toggle-greeting"><span class="toggle-slider"></span></label></div>
-      <div class="setting-row" id="greeting-name-row" style="display:none;"><div class="setting-row-label">Your Name</div><input id="greeting-name-input" type="text" placeholder="e.g. Alex" autocomplete="off"></div>
-      <div class="setting-row" id="greeting-fade-row" style="display:none;"><div><div class="setting-row-label">Greeting Fade (s)</div><div class="setting-row-sub">0 = stays visible</div></div><input id="greeting-fade-input" type="number" min="0" max="60" value="4" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font-mono);font-size:0.78rem;outline:none;width:60px;text-align:center;"></div>
-      <div class="setting-row"><div><div class="setting-row-label">Show Search Bar</div></div><label class="toggle"><input type="checkbox" id="toggle-search" checked><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div><div class="setting-row-label">Extra Timezone Clocks</div><div class="setting-row-sub">Show additional city clocks</div></div><label class="toggle"><input type="checkbox" id="toggle-extra-clocks"><span class="toggle-slider"></span></label></div>
-      <div id="extra-clocks-settings" style="display:none;margin-top:2px;"><div id="extra-clocks-list"></div><button id="add-clock-btn">+ Add clock</button></div>
+        <div class="setting-row-label">Clock Font</div>
+        <select id="clock-font-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="mono">Monospace (default)</option>
+          <option value="sans">Sans-serif</option>
+          <option value="serif">Serif</option>
+          <option value="courier">Courier</option>
+          <option value="system">System UI thin</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">Time Format</div>
+        <select id="clock-format-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="24">24-hour</option>
+          <option value="12">12-hour (AM/PM)</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Clock</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-clock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">Clock Animation</div>
+        <select id="clock-anim-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="fade-up">Fade + Rise</option>
+          <option value="fade">Fade only</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Date</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-date" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Weather Under Clock</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-clock-weather"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div><div class="setting-row-label">Clock Vertical Position</div><div class="setting-row-sub">Move clock up (−) or down (+)</div></div>
+        <div class="range-row" style="width:100%;">
+          <input type="range" class="range-slider" id="clock-top-slider" min="-200" max="200" step="10" value="0">
+          <span class="range-label" id="clock-top-label">0px</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Greeting Message</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-greeting"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row" id="greeting-name-row" style="display:none;">
+        <div class="setting-row-label">Your Name</div>
+        <input id="greeting-name-input" type="text" placeholder="e.g. Alex" autocomplete="off">
+      </div>
+      <div class="setting-row" id="greeting-fade-row" style="display:none;">
+        <div><div class="setting-row-label">Greeting Fade (s)</div><div class="setting-row-sub">0 = stays visible</div></div>
+        <input id="greeting-fade-input" type="number" min="0" max="60" value="4" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font-mono);font-size:0.78rem;outline:none;width:60px;text-align:center;">
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Search Bar</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-search" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Extra Timezone Clocks</div><div class="setting-row-sub">Show additional city clocks</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-extra-clocks"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="extra-clocks-settings" style="display:none;margin-top:2px;">
+        <div id="extra-clocks-list"></div>
+        <button id="add-clock-btn">+ Add clock</button>
+      </div>
     </div>
+
     <div class="setting-group">
       <div class="setting-group-label">Widgets</div>
-      <div class="setting-row"><div><div class="setting-row-label">Widget Fade</div><div class="setting-row-sub">Widgets dim to 30% until hovered</div></div><label class="toggle"><input type="checkbox" id="toggle-widget-fade"><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div><div class="setting-row-label">Show Dock Buttons</div><div class="setting-row-sub">Quick-access circles in corner</div></div><label class="toggle"><input type="checkbox" id="toggle-widget-dock" checked><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div><div class="setting-row-label">Widget Space (Page 2)</div><div class="setting-row-sub">Scroll down to a clean second page</div></div><label class="toggle"><input type="checkbox" id="toggle-page2" checked><span class="toggle-slider"></span></label></div>
-      <label class="widget-toggle-row" for="chk-weather"><span class="widget-toggle-icon">🌤</span><span class="widget-toggle-label">Weather</span><span class="toggle"><input type="checkbox" id="chk-weather"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-timer"><span class="widget-toggle-icon">⏱</span><span class="widget-toggle-label">Timer / Stopwatch</span><span class="toggle"><input type="checkbox" id="chk-timer"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-notes"><span class="widget-toggle-icon">📝</span><span class="widget-toggle-label">Notes</span><span class="toggle"><input type="checkbox" id="chk-notes"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-currency"><span class="widget-toggle-icon">💱</span><span class="widget-toggle-label">Currency Converter</span><span class="toggle"><input type="checkbox" id="chk-currency"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-quotes"><span class="widget-toggle-icon">💬</span><span class="widget-toggle-label">Famous Quotes</span><span class="toggle"><input type="checkbox" id="chk-quotes"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-learn"><span class="widget-toggle-icon">🔤</span><span class="widget-toggle-label">Learn Language</span><span class="toggle"><input type="checkbox" id="chk-learn"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-merriam"><span class="widget-toggle-icon">📖</span><span class="widget-toggle-label">Word of the Day</span><span class="toggle"><input type="checkbox" id="chk-merriam"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-quicklinks"><span class="widget-toggle-icon">🔗</span><span class="widget-toggle-label">Quick Links</span><span class="toggle"><input type="checkbox" id="chk-quicklinks"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-todo"><span class="widget-toggle-icon">✅</span><span class="widget-toggle-label">To-Do List</span><span class="toggle"><input type="checkbox" id="chk-todo"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-calendar"><span class="widget-toggle-icon">📅</span><span class="widget-toggle-label">Mini Calendar</span><span class="toggle"><input type="checkbox" id="chk-calendar"><span class="toggle-slider"></span></span></label>
-      <label class="widget-toggle-row" for="chk-crypto"><span class="widget-toggle-icon">₿</span><span class="widget-toggle-label">Crypto Tracker</span><span class="toggle"><input type="checkbox" id="chk-crypto"><span class="toggle-slider"></span></span></label>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Widget Fade</div><div class="setting-row-sub">Widgets dim to 30% until hovered</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-widget-fade"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Dock Buttons</div><div class="setting-row-sub">Quick-access circles in corner</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-widget-dock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <label class="widget-toggle-row" for="chk-weather">
+        <span class="widget-toggle-icon">🌤</span><span class="widget-toggle-label">Weather</span>
+        <span class="toggle"><input type="checkbox" id="chk-weather"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-timer">
+        <span class="widget-toggle-icon">⏱</span><span class="widget-toggle-label">Timer / Stopwatch</span>
+        <span class="toggle"><input type="checkbox" id="chk-timer"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-notes">
+        <span class="widget-toggle-icon">📝</span><span class="widget-toggle-label">Notes</span>
+        <span class="toggle"><input type="checkbox" id="chk-notes"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-currency">
+        <span class="widget-toggle-icon">💱</span><span class="widget-toggle-label">Currency Converter</span>
+        <span class="toggle"><input type="checkbox" id="chk-currency"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-quotes">
+        <span class="widget-toggle-icon">💬</span><span class="widget-toggle-label">Famous Quotes</span>
+        <span class="toggle"><input type="checkbox" id="chk-quotes"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-learn">
+        <span class="widget-toggle-icon">🔤</span><span class="widget-toggle-label">Learn Language</span>
+        <span class="toggle"><input type="checkbox" id="chk-learn"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-merriam">
+        <span class="widget-toggle-icon">📖</span><span class="widget-toggle-label">Word of the Day</span>
+        <span class="toggle"><input type="checkbox" id="chk-merriam"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-quicklinks">
+        <span class="widget-toggle-icon">🔗</span><span class="widget-toggle-label">Quick Links</span>
+        <span class="toggle"><input type="checkbox" id="chk-quicklinks"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-todo">
+        <span class="widget-toggle-icon">✅</span><span class="widget-toggle-label">To-Do List</span>
+        <span class="toggle"><input type="checkbox" id="chk-todo"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-calendar">
+        <span class="widget-toggle-icon">📅</span><span class="widget-toggle-label">Mini Calendar</span>
+        <span class="toggle"><input type="checkbox" id="chk-calendar"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-crypto">
+        <span class="widget-toggle-icon">₿</span><span class="widget-toggle-label">Crypto Tracker</span>
+        <span class="toggle"><input type="checkbox" id="chk-crypto"><span class="toggle-slider"></span></span>
+      </label>
       <div id="word-lang-row" class="setting-row" style="display:none;flex-direction:column;align-items:flex-start;gap:8px;">
         <div class="setting-row-label">Word Languages</div>
         <div style="display:flex;gap:8px;width:100%;">
-          <select id="word-lang1" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;"><option value="English">English</option><option value="Spanish">Spanish</option><option value="French">French</option><option value="German">German</option><option value="Italian">Italian</option><option value="Portuguese">Portuguese</option><option value="Dutch">Dutch</option><option value="Russian">Russian</option><option value="Polish">Polish</option><option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option><option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option><option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option><option value="Hindi">Hindi</option><option value="Greek">Greek</option><option value="Latin">Latin</option><option value="Serbian">Serbian</option></select>
+          <select id="word-lang1" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;">
+            <option value="English">English</option><option value="Spanish">Spanish</option><option value="French">French</option>
+            <option value="German">German</option><option value="Italian">Italian</option><option value="Portuguese">Portuguese</option>
+            <option value="Dutch">Dutch</option><option value="Russian">Russian</option><option value="Polish">Polish</option>
+            <option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option>
+            <option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option>
+            <option value="Hindi">Hindi</option><option value="Greek">Greek</option><option value="Latin">Latin</option>
+            <option value="Serbian">Serbian</option>
+          </select>
           <span style="display:flex;align-items:center;color:var(--text2);font-size:0.8rem;">–</span>
-          <select id="word-lang2" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;"><option value="French">French</option><option value="English">English</option><option value="Spanish">Spanish</option><option value="German">German</option><option value="Italian">Italian</option><option value="Portuguese">Portuguese</option><option value="Dutch">Dutch</option><option value="Russian">Russian</option><option value="Polish">Polish</option><option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option><option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option><option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option><option value="Hindi">Hindi</option><option value="Greek">Greek</option><option value="Latin">Latin</option><option value="Serbian">Serbian</option></select>
+          <select id="word-lang2" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;">
+            <option value="French">French</option><option value="English">English</option><option value="Spanish">Spanish</option>
+            <option value="German">German</option><option value="Italian">Italian</option><option value="Portuguese">Portuguese</option>
+            <option value="Dutch">Dutch</option><option value="Russian">Russian</option><option value="Polish">Polish</option>
+            <option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option>
+            <option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option>
+            <option value="Hindi">Hindi</option><option value="Greek">Greek</option><option value="Latin">Latin</option>
+            <option value="Serbian">Serbian</option>
+          </select>
         </div>
-        <div class="setting-row-sub">Note: word pairs are English–French by default.</div>
+        <div class="setting-row-sub" style="margin-top:2px;">Note: word pairs are English–French by default. Language labels are display only.</div>
       </div>
     </div>
+
     <div class="setting-group" style="padding:10px;">
       <div class="setting-group-label">Top Sites</div>
-      <div class="setting-row"><div><div class="setting-row-label">Show Most Visited</div></div><label class="toggle"><input type="checkbox" id="toggle-topsites" checked><span class="toggle-slider"></span></label></div>
-      <div class="setting-row"><div class="setting-row-label">Max Sites Shown</div><select id="topsites-count" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:4px 8px;font-family:var(--font);font-size:0.78rem;outline:none;"><option value="6">6</option><option value="8" selected>8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option></select></div>
-      <div class="setting-row" style="cursor:pointer;" id="open-ignore-list-btn"><div><div class="setting-row-label">Ignored Sites</div><div class="setting-row-sub">Sites hidden from Most Visited</div></div><span style="font-size:0.75rem;color:var(--accent);">Manage →</span></div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Show Most Visited</div></div>
+        <label class="toggle"><input type="checkbox" id="toggle-topsites" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">Max Sites Shown</div>
+        <select id="topsites-count" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:4px 8px;font-family:var(--font);font-size:0.78rem;outline:none;">
+          <option value="6">6</option><option value="8" selected>8</option><option value="10">10</option>
+          <option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option>
+        </select>
+      </div>
+      <div class="setting-row" style="cursor:pointer;" id="open-ignore-list-btn">
+        <div><div class="setting-row-label">Ignored Sites</div><div class="setting-row-sub">Sites hidden from Most Visited</div></div>
+        <span style="font-size:0.75rem;color:var(--accent);">Manage →</span>
+      </div>
     </div>
+
     <div class="setting-group" style="padding:10px;">
       <div class="setting-group-label">Sidebar</div>
-      <div class="setting-row"><div><div class="setting-row-label">Sidebar Content</div></div><select id="sidebar-mode" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;"><option value="activetabs">Active Tabs</option><option value="mostvisited">Most Visited (10d)</option><option value="stored">Stored Tabs</option><option value="bookmarks">Bookmark Folder</option><option value="none">Hidden</option></select></div>
-      <div class="setting-row" id="bookmark-folder-row" style="display:none;"><div><div class="setting-row-label">Folder</div></div><select id="bookmark-folder-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;max-width:140px;"><option value="">Loading…</option></select></div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">Sidebar Content</div></div>
+        <select id="sidebar-mode" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="activetabs">Active Tabs</option>
+          <option value="mostvisited">Most Visited (10d)</option>
+          <option value="stored">Stored Tabs</option>
+          <option value="bookmarks">Bookmark Folder</option>
+          <option value="none">Hidden</option>
+        </select>
+      </div>
+      <div class="setting-row" id="bookmark-folder-row" style="display:none;">
+        <div><div class="setting-row-label">Folder</div></div>
+        <select id="bookmark-folder-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;max-width:140px;">
+          <option value="">Loading…</option>
+        </select>
+      </div>
     </div>
+
     <div class="setting-group" style="padding:10px;">
       <div class="setting-group-label">Weather</div>
-      <div class="setting-row"><div><div class="setting-row-label">City</div><div class="setting-row-sub">For clock weather display</div></div><input id="settings-weather-city" type="text" placeholder="e.g. London" autocomplete="off" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.72rem;outline:none;width:110px;"></div>
+      <div class="setting-row">
+        <div><div class="setting-row-label">City</div><div class="setting-row-sub">For clock weather display</div></div>
+        <input id="settings-weather-city" type="text" placeholder="e.g. London" autocomplete="off"
+          style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.72rem;outline:none;width:110px;">
+      </div>
     </div>
+
   </div>
+
   <div class="settings-footer">
     <div class="settings-export-row">
       <button class="settings-io-btn" id="settings-export-btn">⬆ Export Settings</button>
       <button class="settings-io-btn" id="settings-import-btn">⬇ Import Settings</button>
       <input type="file" id="settings-import-file" accept=".json" style="display:none">
     </div>
-    <div class="settings-footer-credits">Made by <strong>Bane Kondic</strong> &mdash; <a href="https://github.com/banekondic1996/Extended-Page-Chrome" target="_blank">GitHub ↗</a></div>
+    <div class="settings-footer-credits">
+      Made by <strong>Bane Kondic</strong> &mdash;
+      <a href="https://github.com/banekondic1996/Extended-Page-Chrome" target="_blank">GitHub ↗</a>
+    </div>
   </div>
 </div>
 
 <script src="quotes.js"></script>
 <script src="words.js"></script>
 <script src="newtab.js"></script>
+<script src="widgets/quicklinks.js"></script>
+<script src="widgets/todo.js"></script>
+<script src="widgets/calendar.js"></script>
+<script src="widgets/crypto.js"></script>
 </body>
 </html>
