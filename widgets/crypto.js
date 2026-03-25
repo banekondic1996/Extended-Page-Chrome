@@ -1,5 +1,23 @@
 // ══ WIDGET: CRYPTO TRACKER ═══════════════════════════════════════════════════
-window.initWidget_crypto = function() {
+
+// ── HTML injection (must run FIRST so the element exists when logic runs) ─────
+(function injectCryptoHTML() {
+  if (document.getElementById('widget-crypto')) return;
+  var div = document.createElement('div');
+  div.innerHTML =
+    '<div class="widget" id="widget-crypto">' +
+    '<div class="widget-header"><span>\u20BF</span><span class="widget-title">Crypto</span>' +
+    '<button class="widget-close" data-close="crypto">\u2715</button></div>' +
+    '<div id="crypto-list" class="crypto-list"></div>' +
+    '<div class="crypto-search-row"><div class="crypto-search-wrap">' +
+    '<input type="text" id="crypto-search-input" class="crypto-search-input" placeholder="Search coin\u2026" autocomplete="off" spellcheck="false">' +
+    '<button id="crypto-add-btn" class="crypto-add-btn">+</button>' +
+    '</div></div></div>';
+  document.body.appendChild(div.firstElementChild);
+})();
+
+// ── Widget logic ──────────────────────────────────────────────────────────────
+(function() {
   var el = document.getElementById('widget-crypto');
   if (!el || el.dataset.init) return;
   el.dataset.init = '1';
@@ -122,19 +140,4 @@ window.initWidget_crypto = function() {
 
   renderCryptoList();
   setInterval(renderCryptoList, 60000);
-};
-
-(function injectCryptoHTML() {
-  if (document.getElementById('widget-crypto')) return;
-  var div = document.createElement('div');
-  div.innerHTML =
-    '<div class="widget" id="widget-crypto">' +
-    '<div class="widget-header"><span>\u20BF</span><span class="widget-title">Crypto</span>' +
-    '<button class="widget-close" data-close="crypto">\u2715</button></div>' +
-    '<div id="crypto-list" class="crypto-list"></div>' +
-    '<div class="crypto-search-row"><div class="crypto-search-wrap">' +
-    '<input type="text" id="crypto-search-input" class="crypto-search-input" placeholder="Search coin\u2026" autocomplete="off" spellcheck="false">' +
-    '<button id="crypto-add-btn" class="crypto-add-btn">+</button>' +
-    '</div></div></div>';
-  document.body.appendChild(div.firstElementChild);
 })();

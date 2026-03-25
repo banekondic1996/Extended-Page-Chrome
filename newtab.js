@@ -1,5 +1,5 @@
 // ══ EXTENDED HISTORY BRIDGE ══════════════════════════════════════════════
-const EH_EXTENSION_ID = 'cafkcdbcpedhmjmnkbgkecahgkoclhji';
+const EH_EXTENSION_ID = 'cdfgfljiefjinljmnedgkfhgcgldkhkk';
 let ehAvailable = false;
 
 function ehSend(message) {
@@ -204,12 +204,14 @@ function applyClockFont() {
 }
 
 function applyClockVisibility() {
-  const clockEl = document.getElementById('clock-time');
+  const clockDigital = document.getElementById('clock-time');
+  const clockAnal = document.getElementById('clock-analog');
   const dateEl  = document.getElementById('clock-date');
   const block   = document.getElementById('clock-block');
-  const isAnalog = ntSettings.clockType === 'analog';
+  const clockType = ntSettings.clockType;
   // Digital clock text: hidden if showClock is off OR analog mode is active
-  if (clockEl) clockEl.style.display = (ntSettings.showClock === false || isAnalog) ? 'none' : '';
+  if (clockDigital && ntSettings.clockType === 'digital') clockDigital.style.display = (ntSettings.showClock === false || clockType === 'analog' ) ? 'none' : '';
+  if (clockAnal && ntSettings.clockType === 'analog') clockAnal.style.display = (ntSettings.showClock === false || clockType === 'digital') ? 'none' : '';
   if (dateEl)  dateEl.style.display  = ntSettings.showDate  === false ? 'none' : '';
   if (block)   block.style.display   = (ntSettings.showClock === false && ntSettings.showDate === false) ? 'none' : '';
   const tc = document.getElementById('toggle-clock');

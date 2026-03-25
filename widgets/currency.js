@@ -4,11 +4,14 @@ window.initWidget_currency = function() {
   const CURRENCIES = ['USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','SEK','NOK','DKK','PLN','CZK','HUF','RON','BGN','HRK','RSD','RUB','TRY','BRL','MXN','INR','IDR','MYR','PHP','SGD','THB','ZAR','KRW','AED','SAR','ILS','NGN','EGP','PKR','BDT','VND','UAH','TWD','HKD'];
   let exchangeRates = null;
 
+  // Guard: ntSettings may not be defined yet when this widget initialises
+  const settings = (typeof ntSettings !== 'undefined' && ntSettings) ? ntSettings : {};
+
   function populateSelects() {
     ['currency-from','currency-to'].forEach((id, idx) => {
       const sel = document.getElementById(id); if (!sel) return;
       CURRENCIES.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; sel.appendChild(opt); });
-      sel.value = idx === 0 ? (ntSettings.currencyFrom || 'USD') : (ntSettings.currencyTo || 'EUR');
+      sel.value = idx === 0 ? (settings.currencyFrom || 'USD') : (settings.currencyTo || 'EUR');
     });
   }
   populateSelects();
@@ -36,7 +39,11 @@ window.initWidget_currency = function() {
     document.getElementById('currency-result').textContent = result.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' ' + to;
     document.getElementById('currency-result-input').value = result.toFixed(4);
     document.getElementById('currency-rate').textContent = `1 ${from} = ${rate.toFixed(4)} ${to}`;
-    ntSettings.currencyFrom = from; ntSettings.currencyTo = to; saveSettings();
+    // Only persist back to ntSettings if it exists
+    if (typeof ntSettings !== 'undefined' && ntSettings) {
+      ntSettings.currencyFrom = from; ntSettings.currencyTo = to;
+      if (typeof saveSettings === 'function') saveSettings();
+    }
   }
 
   document.getElementById('currency-amount').addEventListener('input', convertCurrency);
@@ -73,3 +80,7 @@ window.initWidget_currency = function() {
 </div>`;
   document.body.appendChild(div.firstElementChild);
 })();
+
+// Self-start — initWidget_currency is never called by newtab.js,
+// so we invoke it here after the HTML is guaranteed to exist.
+window.initWidget_currency();
