@@ -9,4 +9,5 @@ New tab page extension that complements Extended History </br>
 **To do:** </br>
 <pre>
 -Add translations
+-Improve speed and load widget scripts based on need
 </pre>
