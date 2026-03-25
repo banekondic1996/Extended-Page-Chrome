@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Extended Page | New Tab",
-  "version": "2.0.8",
+  "version": "3.0.4",
   "description": "A beautiful new tab page with widgets that can be powered by Extended History extension as option",
   "permissions": [
     "storage",
     "tabs",
     "bookmarks",
-    "history"
+    "history",
+    "alarms"
   ],
   "background": {
     "service_worker": "background.js"
