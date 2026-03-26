@@ -21,8 +21,8 @@
   <div id="main">
     <div id="clock-block">
       <div id="greeting-line"></div>
-      <div id="clock-time">00:00</div>
-      <div id="clock-date">Loading…</div>
+      <div id="clock-time"></div>
+      <div id="clock-date"></div>
       <div id="clock-weather-inline">
         <div id="cwi-icon"></div>
         <span id="cwi-temp">--°</span>
@@ -50,7 +50,7 @@
 <!-- SIDEBAR -->
 <div id="sidebar">
   <div id="sidebar-header">
-    <div class="sidebar-logo"><img src="/icons/icon128.png" style="width:26px;height:26px;border-radius:6px;display:block;" onerror="this.style.display='none'"></div>
+    <!-- <div class="sidebar-logo"><img src="/icons/icon128.png" style="width:26px;height:26px;border-radius:6px;display:block;" onerror="this.style.display='none'"></div> -->
     <div class="sidebar-logo-text">Extended Page</div>
   </div>
   <div class="sidebar-section-label" id="sidebar-section-label">Active Tabs</div>
@@ -181,6 +181,7 @@
     <div class="word-lang-display" id="word-lang-display">English – French</div>
   </div>
   <div class="word-footer">
+    <button class="word-speak-btn" id="word-speak">Speak</button>
     <button class="quotes-next-btn" id="word-next">Next →</button>
   </div>
 </div>
@@ -200,6 +201,68 @@
   </div>
   <div class="merriam-footer">
     <a class="merriam-link" id="merriam-link" href="https://www.merriam-webster.com/word-of-the-day" target="_blank">merriam-webster.com ↗</a>
+  </div>
+</div>
+
+<!-- QUICK LINKS WIDGET -->
+<div class="widget" id="widget-quicklinks">
+  <div class="widget-header"><span>🔗</span><span class="widget-title">Quick Links</span><button class="widget-close" data-close="quicklinks">✕</button></div>
+  <div id="quicklinks-grid" class="ql-grid"></div>
+</div>
+
+<!-- TODO WIDGET -->
+<div class="widget" id="widget-todo">
+  <div class="widget-header">
+    <span>✅</span><span class="widget-title">To-Do</span>
+    <span id="todo-counter" class="todo-header-counter"></span>
+    <button class="widget-close" data-close="todo">✕</button>
+  </div>
+  <div id="todo-list" class="todo-list"></div>
+  <div class="todo-input-row">
+    <input type="text" id="todo-input" class="todo-input" placeholder="New task…" autocomplete="off" spellcheck="false">
+    <button id="todo-add-btn" class="todo-add-btn">+</button>
+  </div>
+  <div class="todo-footer">
+    <button id="todo-clear-done" class="todo-clear-btn">Clear done</button>
+  </div>
+</div>
+
+<!-- MINI CALENDAR WIDGET -->
+<div class="widget" id="widget-calendar">
+  <div class="widget-header"><span>📅</span><span class="widget-title">Calendar</span><button class="widget-close" data-close="calendar">✕</button></div>
+  <div class="cal-nav">
+    <button id="cal-prev" class="cal-nav-btn">‹</button>
+    <span id="cal-header-title" class="cal-month-title"></span>
+    <button id="cal-next" class="cal-nav-btn">›</button>
+  </div>
+  <div id="cal-grid" class="cal-grid"></div>
+  <div class="cal-footer">
+    <button id="cal-today-btn" class="cal-today-btn">Today</button>
+  </div>
+</div>
+
+<!-- CRYPTO WIDGET -->
+<div class="widget" id="widget-crypto">
+  <div class="widget-header"><span>₿</span><span class="widget-title">Crypto</span><button class="widget-close" data-close="crypto">✕</button></div>
+  <div id="crypto-list" class="crypto-list"></div>
+  <div class="crypto-search-row">
+    <div class="crypto-search-wrap">
+      <input type="text" id="crypto-search-input" class="crypto-search-input" placeholder="Search coin…" autocomplete="off" spellcheck="false">
+      <button id="crypto-add-btn" class="crypto-add-btn">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK LINK MODAL -->
+<div id="ql-modal-overlay" class="ql-modal-overlay" style="display:none;">
+  <div class="ql-modal">
+    <div class="ql-modal-title">Add Quick Link</div>
+    <input type="url" id="ql-url-input" class="ql-modal-input" placeholder="https://example.com" autocomplete="off">
+    <input type="text" id="ql-label-input" class="ql-modal-input" placeholder="Label (optional)" autocomplete="off">
+    <div class="ql-modal-btns">
+      <button id="ql-cancel-btn" class="ql-modal-btn-cancel">Cancel</button>
+      <button id="ql-save-btn" class="ql-modal-btn-save">Add</button>
+    </div>
   </div>
 </div>
 
@@ -244,6 +307,14 @@
         <div><div class="setting-row-label">Randomize on New Tab</div><div class="setting-row-sub">Pick a random wallpaper each time</div></div>
         <label class="toggle"><input type="checkbox" id="toggle-random-wp"><span class="toggle-slider"></span></label>
       </div>
+      <div class="setting-row" style="margin-top:4px;">
+        <div class="setting-row-label">Wallpaper Animation</div>
+        <select id="wp-anim-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="fade-expand">Fade + Expand</option>
+          <option value="fade">Fade only</option>
+          <option value="none">None</option>
+        </select>
+      </div>
       <div class="setting-row" style="margin-top:4px;flex-direction:column;align-items:flex-start;gap:6px;">
         <div class="setting-row-label">Wallpaper Blur</div>
         <div class="range-row" style="width:100%;">
@@ -279,7 +350,6 @@
         </div>
       </div>
     </div>
-
     <div class="setting-group">
       <div class="setting-group-label">Appearance</div>
       <div class="setting-row">
@@ -339,6 +409,14 @@
       <div class="setting-row">
         <div><div class="setting-row-label">Show Clock</div></div>
         <label class="toggle"><input type="checkbox" id="toggle-clock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-row-label">Clock Animation</div>
+        <select id="clock-anim-sel" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:5px 8px;font-family:var(--font);font-size:0.78rem;outline:none;cursor:pointer;">
+          <option value="fade-up">Fade + Rise</option>
+          <option value="fade">Fade only</option>
+          <option value="none">None</option>
+        </select>
       </div>
       <div class="setting-row">
         <div><div class="setting-row-label">Show Date</div></div>
@@ -419,6 +497,22 @@
         <span class="widget-toggle-icon">📖</span><span class="widget-toggle-label">Word of the Day</span>
         <span class="toggle"><input type="checkbox" id="chk-merriam"><span class="toggle-slider"></span></span>
       </label>
+      <label class="widget-toggle-row" for="chk-quicklinks">
+        <span class="widget-toggle-icon">🔗</span><span class="widget-toggle-label">Quick Links</span>
+        <span class="toggle"><input type="checkbox" id="chk-quicklinks"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-todo">
+        <span class="widget-toggle-icon">✅</span><span class="widget-toggle-label">To-Do List</span>
+        <span class="toggle"><input type="checkbox" id="chk-todo"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-calendar">
+        <span class="widget-toggle-icon">📅</span><span class="widget-toggle-label">Mini Calendar</span>
+        <span class="toggle"><input type="checkbox" id="chk-calendar"><span class="toggle-slider"></span></span>
+      </label>
+      <label class="widget-toggle-row" for="chk-crypto">
+        <span class="widget-toggle-icon">₿</span><span class="widget-toggle-label">Crypto Tracker</span>
+        <span class="toggle"><input type="checkbox" id="chk-crypto"><span class="toggle-slider"></span></span>
+      </label>
       <div id="word-lang-row" class="setting-row" style="display:none;flex-direction:column;align-items:flex-start;gap:8px;">
         <div class="setting-row-label">Word Languages</div>
         <div style="display:flex;gap:8px;width:100%;">
@@ -429,7 +523,8 @@
             <option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option>
             <option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option>
             <option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option>
-            <option value="Hindi">Hindi</option><option value="Greek">Greek</option>
+            <option value="Hindi">Hindi</option><option value="Greek">Greek</option><option value="Latin">Latin</option>
+            <option value="Serbian">Serbian</option>
           </select>
           <span style="display:flex;align-items:center;color:var(--text2);font-size:0.8rem;">–</span>
           <select id="word-lang2" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:var(--font);font-size:0.75rem;outline:none;cursor:pointer;">
@@ -439,7 +534,8 @@
             <option value="Swedish">Swedish</option><option value="Norwegian">Norwegian</option><option value="Danish">Danish</option>
             <option value="Finnish">Finnish</option><option value="Turkish">Turkish</option><option value="Arabic">Arabic</option>
             <option value="Japanese">Japanese</option><option value="Chinese">Chinese</option><option value="Korean">Korean</option>
-            <option value="Hindi">Hindi</option><option value="Greek">Greek</option>
+            <option value="Hindi">Hindi</option><option value="Greek">Greek</option><option value="Latin">Latin</option>
+            <option value="Serbian">Serbian</option>
           </select>
         </div>
         <div class="setting-row-sub" style="margin-top:2px;">Note: word pairs are English–French by default. Language labels are display only.</div>
@@ -509,7 +605,12 @@
   </div>
 </div>
 
+<script src="quotes.js"></script>
 <script src="words.js"></script>
 <script src="newtab.js"></script>
+<script src="widgets/quicklinks.js"></script>
+<script src="widgets/todo.js"></script>
+<script src="widgets/calendar.js"></script>
+<script src="widgets/crypto.js"></script>
 </body>
 </html>
