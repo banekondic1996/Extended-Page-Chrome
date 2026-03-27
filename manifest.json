@@ -1,34 +1,38 @@
 {
   "manifest_version": 2,
-  "name": "Extended Page | New Tab",
-  "version": "2.0.7",
-  "description": "A beautiful new tab page with widgets that can be powered by Extended History extension as option",
-
+  "name": "Extended Page | New Tab Homepage",
+  "version": "3.1.0",
+  "description": "A beautiful new tab homepage with widgets that can be powered by Extended History extension as option",
   "permissions": [
     "storage",
     "tabs",
     "bookmarks",
-    "history"
+    "history",
+    "alarms"
   ],
-
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
-
   "browser_specific_settings": {
     "gecko": {
       "id": "extended-page-newtab@extension",
       "strict_min_version": "109.0",
       "data_collection_permissions": {
-        "required": ["none"],
+        "required": [
+          "none"
+        ],
         "optional": []
       }
     }
   },
-
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
   }
 }
