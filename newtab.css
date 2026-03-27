@@ -32,7 +32,7 @@
 }
 
 [data-theme="light"] {
-  --bg: #f0f0f5;
+  --bg: rgba(241, 241, 241, 0.882);
   --glass: rgba(255,255,255,0.55);
   --glass-border: rgba(0,0,0,0.08);
   --glass-hover: rgba(255,255,255,0.75);

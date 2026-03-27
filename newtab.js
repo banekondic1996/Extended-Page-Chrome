@@ -1,4 +1,10 @@
 // ══ EXTENDED HISTORY BRIDGE ══════════════════════════════════════════════
+(function() {
+  try {
+    var t = localStorage.getItem('nt_theme_flash');
+    if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  } catch(e) {}
+})();
 const EH_EXTENSION_ID = 'cdfgfljiefjinljmnedgkfhgcgldkhkk';
 let ehAvailable = false;
 
@@ -195,6 +201,8 @@ function saveSettings() {
   // Mirror just the flags the background script needs under a SEPARATE key
   // so it never overwrites the full nt_settings object.
   csSet('nt_bg_settings', { randomWallpaper: ntSettings.randomWallpaper });
+  // Tiny localStorage mirror ONLY for the flash-prevention inline script in <head>
+  try { localStorage.setItem('nt_theme_flash', ntSettings.theme || 'dark'); } catch(e) {}
 }
 
 console.log('checkpoint 2');
@@ -798,6 +806,196 @@ async function prefetchWallpaper() {
   } catch {}
 }
 
+// ════════════════════════════════════════════ WALLPAPER LIBRARY
+// Full-resolution images live in IndexedDB (no quota pressure).
+// Only small thumbnails + metadata are kept in LS / browser.storage.local.
+
+const WP_LIB_DB_NAME    = 'nt_wp_library';
+const WP_LIB_STORE_NAME = 'wallpapers';
+const WP_LIB_META_KEY   = 'nt_wplibrary_meta'; // [{id, thumb, favorite, name}]
+
+let _wpLibDB = null;
+function _openWpLibDB() {
+  if (_wpLibDB) return Promise.resolve(_wpLibDB);
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(WP_LIB_DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(WP_LIB_STORE_NAME, { keyPath: 'id' });
+    req.onsuccess = e => { _wpLibDB = e.target.result; resolve(_wpLibDB); };
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+async function wpLibGetBlob(id) {
+  const db = await _openWpLibDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(WP_LIB_STORE_NAME, 'readonly').objectStore(WP_LIB_STORE_NAME).get(id);
+    req.onsuccess = e => resolve(e.target.result ? e.target.result.blob : null);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+async function wpLibPutBlob(id, blob) {
+  const db = await _openWpLibDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(WP_LIB_STORE_NAME, 'readwrite').objectStore(WP_LIB_STORE_NAME).put({ id, blob });
+    req.onsuccess = () => resolve();
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+async function wpLibDeleteBlob(id) {
+  const db = await _openWpLibDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(WP_LIB_STORE_NAME, 'readwrite').objectStore(WP_LIB_STORE_NAME).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+async function wpLibClearAll() {
+  const db = await _openWpLibDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(WP_LIB_STORE_NAME, 'readwrite').objectStore(WP_LIB_STORE_NAME).clear();
+    req.onsuccess = () => resolve();
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function wpLibGetMeta() { return LS.get(WP_LIB_META_KEY, []); }
+function wpLibSetMeta(m) { LS.set(WP_LIB_META_KEY, m); }
+
+async function _makeThumbnail(blob) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 160, ratio = Math.min(MAX / img.width, MAX / img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * ratio); canvas.height = Math.round(img.height * ratio);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.6));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+    img.src = url;
+  });
+}
+
+async function wpLibPickRandom() {
+  const meta = wpLibGetMeta();
+  if (!meta.length) return null;
+  const pool = ntSettings.libraryFavoritesOnly ? meta.filter(m => m.favorite) : meta;
+  if (!pool.length) return null;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const blob = await wpLibGetBlob(pick.id);
+  if (!blob) return null;
+  return URL.createObjectURL(blob);
+}
+
+function renderWpLibraryGrid() {
+  const section = document.getElementById('wp-library-section');
+  const grid    = document.getElementById('wp-library-grid');
+  const countEl = document.getElementById('wp-library-count');
+  if (!grid) return;
+  const meta = wpLibGetMeta();
+  if (section) section.style.display = meta.length ? '' : 'none';
+  if (countEl) countEl.textContent = meta.length + ' photo' + (meta.length !== 1 ? 's' : '');
+  grid.innerHTML = '';
+  meta.forEach(function(item) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;border-radius:7px;overflow:hidden;aspect-ratio:16/9;cursor:pointer;background:var(--glass);';
+    const img = document.createElement('img');
+    img.src = item.thumb;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    const star = document.createElement('button');
+    star.title = item.favorite ? 'Remove from favorites' : 'Mark as favorite';
+    star.textContent = item.favorite ? '\u2605' : '\u2606';
+    star.style.cssText = 'position:absolute;top:3px;left:4px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;width:22px;height:22px;font-size:13px;line-height:1;color:' + (item.favorite ? '#fbbf24' : '#fff') + ';cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;transition:color 0.15s;';
+    star.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const m = wpLibGetMeta();
+      const entry = m.find(x => x.id === item.id);
+      if (entry) { entry.favorite = !entry.favorite; wpLibSetMeta(m); renderWpLibraryGrid(); }
+    });
+    const del = document.createElement('button');
+    del.title = 'Remove';
+    del.textContent = '\u2715';
+    del.style.cssText = 'position:absolute;top:3px;right:4px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;width:22px;height:22px;font-size:11px;color:#fff;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
+    del.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      await wpLibDeleteBlob(item.id);
+      const m = wpLibGetMeta().filter(x => x.id !== item.id);
+      wpLibSetMeta(m);
+      renderWpLibraryGrid();
+    });
+    wrap.appendChild(img); wrap.appendChild(star); wrap.appendChild(del);
+    grid.appendChild(wrap);
+  });
+  const togLib = document.getElementById('toggle-library-random');
+  const togFav = document.getElementById('toggle-library-favorites-only');
+  if (togLib) togLib.checked = !!ntSettings.libraryRandom;
+  if (togFav) togFav.checked = !!ntSettings.libraryFavoritesOnly;
+}
+
+async function handleLibraryUpload(files) {
+  const meta = wpLibGetMeta();
+  for (const file of files) {
+    const id = 'wpl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const thumb = await _makeThumbnail(file);
+    await wpLibPutBlob(id, file);
+    meta.push({ id, thumb, favorite: false, name: file.name });
+  }
+  wpLibSetMeta(meta);
+  renderWpLibraryGrid();
+}
+
+// Wire library controls (runs after DOM is ready inside _storageReady.then)
+(function wireLibraryControls() {
+  var libInput = document.getElementById('wp-library-upload');
+  if (libInput) {
+    libInput.addEventListener('change', async function(e) {
+      if (e.target.files && e.target.files.length) {
+        await handleLibraryUpload(Array.from(e.target.files));
+        e.target.value = '';
+      }
+    });
+  }
+  var clearBtn = document.getElementById('wp-library-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async function() {
+      if (!confirm('Clear all uploaded wallpapers? This cannot be undone.')) return;
+      await wpLibClearAll();
+      wpLibSetMeta([]);
+      renderWpLibraryGrid();
+      if (ntSettings.libraryRandom) {
+        ntSettings.libraryRandom = false;
+        ntSettings.randomWallpaper = true;
+        saveSettings();
+        var togLib = document.getElementById('toggle-library-random');
+        if (togLib) togLib.checked = false;
+        var togRand = document.getElementById('toggle-random-wp');
+        if (togRand) togRand.checked = true;
+      }
+    });
+  }
+  var togLib = document.getElementById('toggle-library-random');
+  if (togLib) {
+    togLib.addEventListener('change', function(e) {
+      ntSettings.libraryRandom = e.target.checked;
+      if (e.target.checked) {
+        ntSettings.randomWallpaper = false;
+        var togRand = document.getElementById('toggle-random-wp');
+        if (togRand) togRand.checked = false;
+      }
+      saveSettings();
+    });
+  }
+  var togFav = document.getElementById('toggle-library-favorites-only');
+  if (togFav) {
+    togFav.addEventListener('change', function(e) {
+      ntSettings.libraryFavoritesOnly = e.target.checked;
+      saveSettings();
+    });
+  }
+  renderWpLibraryGrid();
+})();
+
 // Trigger the enter animation on #wallpaper-bg
 function triggerWpAnimation() {
   const bg = document.getElementById('wallpaper-bg');
@@ -943,38 +1141,43 @@ applyHiResFeed();
 
 // ════════════════════════════════════════════ RANDOM WALLPAPER
 async function applyRandomWallpaper() {
-  if (!ntSettings.randomWallpaper) return;
+  const useLibrary = ntSettings.libraryRandom && wpLibGetMeta().length > 0;
+  if (!ntSettings.randomWallpaper && !useLibrary) return;
 
   const bg = document.getElementById('wallpaper-bg');
 
-  // Check if first-paint already set the image from the preloaded blob
-  if (bg && bg.dataset.wpFirstPaint === 'random') {
-    delete bg.dataset.wpFirstPaint;
-    // Save what was painted as current, clear the next slot
-    const next = await csGet(WP_NEXT_KEY);
-    if (next) {
-      csSet(WP_CURRENT_KEY, next);
-      csSet(WP_NEXT_KEY, null);
+  // ── Library random mode: pick from IndexedDB ──────────────────────────────
+  if (useLibrary) {
+    const objUrl = await wpLibPickRandom();
+    if (objUrl && bg) {
+      bg.style.backgroundImage = "url('" + objUrl + "')";
+      // Free object-URL after a short delay (image is painted by then)
+      setTimeout(() => URL.revokeObjectURL(objUrl), 30000);
     }
     triggerWpAnimation();
     applyOverlayOpacity();
-    // Prefetch the next one in the background
+    return;
+  }
+
+  // ── Picsum random mode ─────────────────────────────────────────────────────
+  if (bg && bg.dataset.wpFirstPaint === 'random') {
+    delete bg.dataset.wpFirstPaint;
+    const next = await csGet(WP_NEXT_KEY);
+    if (next) { csSet(WP_CURRENT_KEY, next); csSet(WP_NEXT_KEY, null); }
+    triggerWpAnimation();
+    applyOverlayOpacity();
     prefetchWallpaper();
     return;
   }
-console.log('checkpoint 13');
-  // No first-paint — read from chrome.storage.local
-  const next = await csGet(WP_NEXT_KEY);
 
+  const next = await csGet(WP_NEXT_KEY);
   if (next && next.dataUrl) {
-    // Preloaded blob ready — paint it instantly
     if (bg) bg.style.backgroundImage = "url('" + next.dataUrl + "')";
     triggerWpAnimation();
     applyOverlayOpacity();
     csSet(WP_CURRENT_KEY, next);
     csSet(WP_NEXT_KEY, null);
   } else {
-    // Nothing preloaded yet (first ever open) — fetch directly from picsum
     const w    = window.screen.width  || 1920;
     const h    = window.screen.height || 1080;
     const seed = Math.floor(Math.random() * 100000);
@@ -989,8 +1192,6 @@ console.log('checkpoint 13');
       img.src = url;
     }
   }
-
-  // Always prefetch the next wallpaper in the background
   prefetchWallpaper();
 }
 
@@ -998,8 +1199,12 @@ const toggleRandomWp = document.getElementById('toggle-random-wp');
 if (toggleRandomWp) {
   toggleRandomWp.checked = !!ntSettings.randomWallpaper;
   toggleRandomWp.addEventListener('change', e => {
-    ntSettings.randomWallpaper = e.target.checked; 
+    ntSettings.randomWallpaper = e.target.checked;
     if (ntSettings.randomWallpaper) {
+      // Disable library random so the two modes don't conflict
+      ntSettings.libraryRandom = false;
+      const togLibRand = document.getElementById('toggle-library-random');
+      if (togLibRand) togLibRand.checked = false;
       // Clear any picked wallpaper so they don't conflict
       ntSettings.wallpaper = 'none';
       document.querySelectorAll('.wallpaper-thumb').forEach(t => t.classList.remove('active'));
@@ -1559,9 +1764,9 @@ if (greetingFadeEl) greetingFadeEl.addEventListener('change', e => {
 });
 applyGreetingSettings();
 
-document.getElementById('openHistoryBtn').addEventListener('click', () => {
-  if (typeof chrome !== 'undefined' && chrome.tabs) chrome.tabs.create({ url: 'about:history' });
-});
+// document.getElementById('openHistoryBtn').addEventListener('click', () => {
+//   if (typeof chrome !== 'undefined' && chrome.tabs) chrome.tabs.create({ url: 'about:history' });
+// });
 
 // ════════════════════════════════════════════ SETTINGS PANEL
 function openSettings() {
@@ -2376,7 +2581,7 @@ updateClock();
 applyGrain();
 applyClockTop();
 triggerClockAnimation();
-if (ntSettings.randomWallpaper) applyRandomWallpaper();
+if (ntSettings.randomWallpaper || ntSettings.libraryRandom) applyRandomWallpaper();
 console.log('checkpoint 20');
 // ════════════════════════════════════════════ WEATHER — Open-Meteo
 // widgets/weather.js uses its OWN local fetchWeather that calls wttr.in directly.

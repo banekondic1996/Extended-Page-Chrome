@@ -89,7 +89,7 @@
         <option value="none">Hidden</option>
       </select>
     </div>
-    <button class="sidebar-btn" id="openHistoryBtn"><span class="sb-icon">🕐</span><span class="sb-label">Full History</span></button>
+    <!-- <button class="sidebar-btn" id="openHistoryBtn"><span class="sb-icon">🕐</span><span class="sb-label">Full History</span></button> -->
     <button class="sidebar-btn" id="openSettingsFromSidebar"><span class="sb-icon">⚙</span><span class="sb-label">Settings</span></button>
   </div>
 </div>
@@ -356,7 +356,26 @@
         <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=1920&q=85" src="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=200&q=70" style="width:100%;height:54px;object-fit:cover;border-radius:7px;cursor:pointer;" title="Ocean sunset">
         <img class="wallpaper-thumb wallpaper-hires" data-wp="https://images.unsplash.com/photo-1518655048521-f130df041f66?w=1920&q=85" src="https://images.unsplash.com/photo-1518655048521-f130df041f66?w=200&q=70" style="width:100%;height:54px;object-fit:cover;border-radius:7px;cursor:pointer;" title="Abstract dark">
       </div>
-      <div class="setting-row" style="margin-top:4px;"><label class="settings-io-btn" style="cursor:pointer;">⬆ Upload Image<input type="file" id="wp-upload" accept="image/*" style="display:none"></label></div>
+      <div class="setting-row" style="margin-top:4px;flex-wrap:wrap;gap:6px;">
+        <label class="settings-io-btn" style="cursor:pointer;">⬆ Upload Wallpaper<input type="file" id="wp-upload" accept="image/*" style="display:none"></label>
+        <label class="settings-io-btn" style="cursor:pointer;">⬆ Upload Library<input type="file" id="wp-library-upload" accept="image/*" multiple style="display:none"></label>
+      </div>
+      <!-- Library random mode controls -->
+      <div id="wp-library-section" style="display:none;margin-top:2px;">
+        <div class="setting-row" style="margin-bottom:4px;">
+          <div><div class="setting-row-label">Shuffle Library</div><div class="setting-row-sub">Use your uploaded photos for random wallpaper</div></div>
+          <label class="toggle"><input type="checkbox" id="toggle-library-random"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row" style="margin-bottom:4px;">
+          <div><div class="setting-row-label">Favorites only</div><div class="setting-row-sub">Only shuffle wallpapers marked ★</div></div>
+          <label class="toggle"><input type="checkbox" id="toggle-library-favorites-only"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="wp-library-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0;max-height:260px;overflow-y:auto;padding-right:2px;"></div>
+        <div class="setting-row" style="margin-top:2px;justify-content:flex-end;gap:6px;">
+          <span id="wp-library-count" style="font-size:0.68rem;color:var(--text2);align-self:center;"></span>
+          <button id="wp-library-clear" class="settings-io-btn" style="background:none;border:1px solid #e53e3e44;color:#e53e3e;">🗑 Clear library</button>
+        </div>
+      </div>
     </div>
     <div class="setting-group">
       <div class="setting-group-label">Appearance</div>
